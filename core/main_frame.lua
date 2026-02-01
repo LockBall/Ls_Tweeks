@@ -95,6 +95,36 @@ local function create_main_frame()
     return frame
 end
 
+-------- create about page --------
+local function build_about_page(parent)
+    -- Clear previous content (frames)
+    for _, child in ipairs({ parent:GetChildren() }) do
+        child:Hide()
+        child:SetParent(nil)
+    end
+
+    -- Clear previous content (fontstrings, textures, etc.)
+    for _, region in ipairs({ parent:GetRegions() }) do
+        region:Hide()
+        region:SetParent(nil)
+    end
+
+    -- populate the About page
+    local title = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    title:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -10)
+    title:SetText("To begin, click a category button on the left.")
+
+    local version = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    version:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
+    version:SetText("Version: " .. (addon.version or "Unknown"))
+
+    local desc = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    desc:SetPoint("TOPLEFT", version, "BOTTOMLEFT", 0, -10)
+    desc:SetWidth(300)
+    desc:SetJustifyH("LEFT")
+    desc:SetText("A modular collection of UI tweaks and enhancements.")
+end
+
 ---------------------------------------------------------
 -- INITIALIZER (called from init.lua)
 ---------------------------------------------------------
@@ -106,17 +136,42 @@ function addon.init_main_frame()
     -----------------------------------------------------
     local y = -10
 
+    -----------------------------------------------------
+    -- ABOUT BUTTON (top of sidebar)
+    -----------------------------------------------------
+    local about_btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
+    about_btn:SetSize(120, 22)
+    about_btn:SetPoint("TOPLEFT", frame.sidebar, "TOPLEFT", 10, y)
+    about_btn:SetText("About")
+
+    about_btn:SetScript("OnClick", function()
+        build_about_page(frame.content_area)
+    end)
+
+    -- Move Y down for categories
+    y = y - 26
+
+    -----------------------------------------------------
+    -- CATEGORY BUTTONS
+    -----------------------------------------------------
     for _, cat in ipairs(addon.categories) do
+
         local btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
         btn:SetSize(120, 22)
         btn:SetPoint("TOPLEFT", frame.sidebar, "TOPLEFT", 10, y)
         btn:SetText(cat.name)
 
         btn:SetScript("OnClick", function()
-            -- Clear previous content
+            -- Clear previous content (frames)
             for _, child in ipairs({ frame.content_area:GetChildren() }) do
                 child:Hide()
                 child:SetParent(nil)
+            end
+
+            -- Clear previous content (fontstrings, textures, etc.)
+            for _, region in ipairs({ frame.content_area:GetRegions() }) do
+                region:Hide()
+                region:SetParent(nil)
             end
 
             -- Build new content
@@ -125,4 +180,6 @@ function addon.init_main_frame()
 
         y = y - 26
     end
+
+    build_about_page(frame.content_area) -- populate right side when user first opens window
 end

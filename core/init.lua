@@ -1,7 +1,13 @@
 local addon_name, addon = ...
+addon.name = addon_name  -- Addon namespace table
 
--- Addon namespace table
-addon.name = addon_name
+local f = CreateFrame("Frame")  -- get version for about page
+f:RegisterEvent("ADDON_LOADED")
+f:SetScript("OnEvent", function(self, event, name)
+    if name == addon_name then
+        addon.version = C_AddOns.GetAddOnMetadata(addon_name, "Version")
+    end
+end)
 
 -- SavedVariables initialization
 local function init_db()
