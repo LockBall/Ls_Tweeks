@@ -1,25 +1,19 @@
 local addon_name, addon = ...
 
----------------------------------------------------------
--- CATEGORY REGISTRATION (modules use this)
----------------------------------------------------------
+-------- CATEGORY REGISTRATION (modules use this) --------
 addon.categories = {}
 
 function addon.register_category(name, builder)
     table.insert(addon.categories, { name = name, builder = builder })
 end
 
----------------------------------------------------------
--- CREATE MAIN FRAME
----------------------------------------------------------
+-------- CREATE MAIN FRAME --------
 local function create_main_frame()
     if addon.main_frame then
         return addon.main_frame
     end
 
-    ---------------------------------------------------------
-    -- MAIN FRAME
-    ---------------------------------------------------------
+    -------- MAIN FRAME --------
     local frame = CreateFrame("Frame", "Ls_Tweeks_main_frame", UIParent, "BackdropTemplate")
     frame:SetSize(500, 400)
     frame:SetPoint("CENTER")
@@ -38,9 +32,7 @@ local function create_main_frame()
     frame:SetBackdropColor(0.06, 0.06, 0.06, 0.95)
     frame:SetBackdropBorderColor(0.2, 0.2, 0.2, 1)
 
-    ---------------------------------------------------------
-    -- TITLE BAR
-    ---------------------------------------------------------
+    -------- TITLE BAR --------
     local title_bar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     title_bar:SetHeight(26)
     title_bar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
@@ -58,16 +50,12 @@ local function create_main_frame()
     title_text:SetPoint("CENTER", title_bar, "CENTER", 0, -1)
     title_text:SetText("L's Tweeks")
 
-    ---------------------------------------------------------
-    -- CLOSE BUTTON
-    ---------------------------------------------------------
+    -------- CLOSE BUTTON --------
     local close_button = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close_button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
     close_button:SetScript("OnClick", function() frame:Hide() end)
 
-    ---------------------------------------------------------
-    -- SIDEBAR (left)
-    ---------------------------------------------------------
+    -------- SIDEBAR (left) --------
     local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     sidebar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -28)
     sidebar:SetWidth(140)
@@ -77,9 +65,7 @@ local function create_main_frame()
 
     frame.sidebar = sidebar
 
-    ---------------------------------------------------------
-    -- CONTENT AREA (right)
-    ---------------------------------------------------------
+    -------- CONTENT AREA (right) --------
     local content_area = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     content_area:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 1, 0)
     content_area:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
@@ -88,9 +74,7 @@ local function create_main_frame()
 
     frame.content_area = content_area
 
-    ---------------------------------------------------------
-    -- STORE AND RETURN
-    ---------------------------------------------------------
+    -------- STORE AND RETURN --------
     addon.main_frame = frame
     return frame
 end
@@ -125,35 +109,42 @@ local function build_about_page(parent)
     desc:SetText("A modular collection of UI tweaks and enhancements.")
 end
 
----------------------------------------------------------
--- INITIALIZER (called from init.lua)
----------------------------------------------------------
+-------- INITIALIZER (called from init.lua) --------
 function addon.init_main_frame()
     local frame = create_main_frame()
 
-    -----------------------------------------------------
-    -- BUILD SIDEBAR BUTTONS
-    -----------------------------------------------------
+    -- Track which sidebar button is selected
+    local selected_button = nil
+
+    local function select_button(btn)
+        -- Reset previous button
+        if selected_button then
+            selected_button:UnlockHighlight()
+        end
+
+        -- Highlight new button
+        btn:LockHighlight()
+        selected_button = btn
+    end
+
+    -------- BUILD SIDEBAR BUTTONS --------
     local y = -10
 
-    -----------------------------------------------------
-    -- ABOUT BUTTON (top of sidebar)
-    -----------------------------------------------------
+    -------- ABOUT BUTTON (top of sidebar) --------
     local about_btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
     about_btn:SetSize(120, 22)
     about_btn:SetPoint("TOPLEFT", frame.sidebar, "TOPLEFT", 10, y)
     about_btn:SetText("About")
 
     about_btn:SetScript("OnClick", function()
+        select_button(about_btn)
         build_about_page(frame.content_area)
     end)
 
     -- Move Y down for categories
     y = y - 26
-
-    -----------------------------------------------------
-    -- CATEGORY BUTTONS
-    -----------------------------------------------------
+    
+    -------- CATEGORY BUTTONS --------
     for _, cat in ipairs(addon.categories) do
 
         local btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
@@ -162,6 +153,8 @@ function addon.init_main_frame()
         btn:SetText(cat.name)
 
         btn:SetScript("OnClick", function()
+            select_button(btn)
+
             -- Clear previous content (frames)
             for _, child in ipairs({ frame.content_area:GetChildren() }) do
                 child:Hide()
@@ -174,12 +167,12 @@ function addon.init_main_frame()
                 region:SetParent(nil)
             end
 
-            -- Build new content
             cat.builder(frame.content_area)
         end)
 
         y = y - 26
     end
 
+    select_button(about_btn)
     build_about_page(frame.content_area) -- populate right side when user first opens window
 end
