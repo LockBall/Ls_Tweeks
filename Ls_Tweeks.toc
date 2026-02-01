@@ -1,0 +1,20 @@
+## Title-enUS: L's Tweeks
+## Author: John P Lutz
+## Notes-enUS: WIP UI adjustments and optional modules
+## Category-enUS: User Interface
+## Interface: 120000
+## Version: 0.1.0
+
+## IconTexture: Interface\AddOns\Ls_Tweeks\media\icon_256.tga
+## SavedVariables: Ls_Tweeks_DB
+
+Libs\LibStub.lua
+Libs\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0.lua
+
+core/init.lua
+core/main_frame.lua
+core/minimap_button.lua
+
+modules/combat_text_portrait.lua

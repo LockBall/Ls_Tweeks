@@ -1,0 +1,30 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor junk
+*.swp
+*.swo
+*.bak
+*.tmp
+*~
+
+# VS Code settings
+.vscode/
+
+# Lua compiler output
+luac.out
+
+# WoW packager artifacts
+pkgmeta.yaml
+pkgmeta.yml
+.release/
+.retail/
+.classic/
+.wrath/
+.cataclysm/
+.toc.bak
+
+# CurseForge packager output
+*.zip
+*.zipped
