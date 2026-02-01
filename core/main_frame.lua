@@ -1,12 +1,12 @@
 local addon_name, addon = ...
 
 ---------------------------------------------------------
--- SETTINGS BUILDER REGISTRATION (modules use this)
+-- CATEGORY REGISTRATION (modules use this)
 ---------------------------------------------------------
-addon.settings_builders = {}
+addon.categories = {}
 
-function addon.register_settings_builder(func)
-    table.insert(addon.settings_builders, func)
+function addon.register_category(name, builder)
+    table.insert(addon.categories, { name = name, builder = builder })
 end
 
 ---------------------------------------------------------
@@ -21,16 +21,14 @@ local function create_main_frame()
     -- MAIN FRAME
     ---------------------------------------------------------
     local frame = CreateFrame("Frame", "Ls_Tweeks_main_frame", UIParent, "BackdropTemplate")
-    frame:SetSize(450, 350)
+    frame:SetSize(500, 400)
     frame:SetPoint("CENTER")
     frame:Hide()
 
-    -- Movement (must be BEFORE title bar drag scripts)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
 
-    -- Main backdrop
     frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -48,18 +46,14 @@ local function create_main_frame()
     title_bar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
     title_bar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
 
-    title_bar:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-    })
+    title_bar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     title_bar:SetBackdropColor(0.12, 0.12, 0.12, 0.95)
 
-    -- Dragging via title bar (ONLY place that handles dragging)
     title_bar:EnableMouse(true)
     title_bar:RegisterForDrag("LeftButton")
     title_bar:SetScript("OnDragStart", function() frame:StartMoving() end)
     title_bar:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
 
-    -- Title text
     local title_text = title_bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title_text:SetPoint("CENTER", title_bar, "CENTER", 0, -1)
     title_text:SetText("L's Tweeks")
@@ -69,45 +63,30 @@ local function create_main_frame()
     ---------------------------------------------------------
     local close_button = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close_button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
-    close_button:SetScript("OnClick", function()
-        frame:Hide()
-    end)
+    close_button:SetScript("OnClick", function() frame:Hide() end)
 
     ---------------------------------------------------------
-    -- CONTENT AREA (modules draw inside here)
+    -- SIDEBAR (left)
     ---------------------------------------------------------
-    local content = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    content:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -28)
-    content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    sidebar:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -28)
+    sidebar:SetWidth(140)
+    sidebar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 1, 1)
+    sidebar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+    sidebar:SetBackdropColor(0.10, 0.10, 0.10, 0.9)
 
-    content:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-    })
-    content:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
-
-    frame.content = content
+    frame.sidebar = sidebar
 
     ---------------------------------------------------------
-    -- RESIZE GRIP
+    -- CONTENT AREA (right)
     ---------------------------------------------------------
-    frame:SetResizable(true)
-    frame:SetResizeBounds(350, 250, 900, 700)
+    local content_area = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    content_area:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 1, 0)
+    content_area:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    content_area:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+    content_area:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
 
-    local grip = CreateFrame("Frame", nil, frame)
-    grip:SetSize(16, 16)
-    grip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
-
-    grip.texture = grip:CreateTexture(nil, "OVERLAY")
-    grip.texture:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-    grip.texture:SetAllPoints()
-
-    grip:EnableMouse(true)
-    grip:SetScript("OnMouseDown", function()
-        frame:StartSizing("BOTTOMRIGHT")
-    end)
-    grip:SetScript("OnMouseUp", function()
-        frame:StopMovingOrSizing()
-    end)
+    frame.content_area = content_area
 
     ---------------------------------------------------------
     -- STORE AND RETURN
@@ -122,8 +101,28 @@ end
 function addon.init_main_frame()
     local frame = create_main_frame()
 
-    -- Let each module add its own settings UI
-    for _, builder in ipairs(addon.settings_builders) do
-        builder(frame.content)
+    -----------------------------------------------------
+    -- BUILD SIDEBAR BUTTONS
+    -----------------------------------------------------
+    local y = -10
+
+    for _, cat in ipairs(addon.categories) do
+        local btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
+        btn:SetSize(120, 22)
+        btn:SetPoint("TOPLEFT", frame.sidebar, "TOPLEFT", 10, y)
+        btn:SetText(cat.name)
+
+        btn:SetScript("OnClick", function()
+            -- Clear previous content
+            for _, child in ipairs({ frame.content_area:GetChildren() }) do
+                child:Hide()
+                child:SetParent(nil)
+            end
+
+            -- Build new content
+            cat.builder(frame.content_area)
+        end)
+
+        y = y - 26
     end
 end
