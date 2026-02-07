@@ -1,9 +1,18 @@
 local addon_name, addon = ...
 
+-- ============================================================================
+-- 1. CACHED GLOBALS & CONSTANTS
+-- ============================================================================
+local floor, math_max, math_ceil = floor, math.max, math.ceil
+local GetAuraData = C_UnitAuras.GetAuraDataByIndex
+local GetTime = GetTime
+
 local M = {}
 addon.aura_frames = M
 
--- Default Configuration
+-- ============================================================================
+-- 2. DEFAULT SETTINGS
+-- ============================================================================
 local defaults = {
     disable_blizz_buffs = false,
     disable_blizz_debuffs = false,
@@ -24,9 +33,9 @@ local defaults = {
 M.db = {}
 M.frames = {}
 
----------------------------------------------------------
--- HELPERS (Existing format_time and blizz toggles)
----------------------------------------------------------
+-- ============================================================================
+-- 3. UTILITY FUNCTIONS (Time Formatting & Blizzard UI Toggles)
+-- ============================================================================
 local function format_time(s)
     if s >= 3600 then return format("%dh", floor(s/3600)) end
     if s >= 60 then return format("%dm", floor(s/60)) end
@@ -42,6 +51,9 @@ local function toggle_blizz_debuffs(hide)
     if hide then DebuffFrame:Hide() DebuffFrame:UnregisterAllEvents() else DebuffFrame:Show() DebuffFrame:RegisterEvent("UNIT_AURA") end
 end
 
+-- ============================================================================
+-- 4. GUI COMPONENT BUILDERS (Sliders, etc.)
+-- ============================================================================
 local function CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db_key, callback)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
     slider:SetMinMaxValues(minV, maxV)
@@ -69,148 +81,159 @@ local function CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db
     return slider
 end
 
----------------------------------------------------------
--- UNIVERSAL UPDATE LOGIC (Same as previous with text fix)
----------------------------------------------------------
+-- ============================================================================
+-- 5. MAIN CORE LOGIC (Aura Scanning & Rendering)
+-- ============================================================================
 function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, spacing_key, filter)
     if not self or not self.icons then return end
     
+    local db = M.db
     local category = show_key:sub(6)
-    local use_bars = M.db["use_bars_"..category]
-    local frame_width = M.db["width_"..category] or 200
-    local spacing = M.db[spacing_key] or 6
-    local color = M.db["color_"..category] or {r=1, g=1, b=1}
+    local use_bars = db["use_bars_"..category]
+    local frame_width = db["width_"..category] or 200
+    local spacing = db[spacing_key] or 6
+    local color = db["color_"..category] or {r=1, g=1, b=1}
+    local short_threshold = db.short_threshold
     
-    self:SetScale(M.db[scale_key] or 1.0)
+    self:SetScale(db[scale_key] or 1.0)
     self:SetWidth(frame_width)
 
-    for _, obj in ipairs(self.icons) do 
+    -- Reset current display
+    for i = 1, #self.icons do
+        local obj = self.icons[i]
         obj:Hide()
         if obj.ticker then obj.ticker:Cancel() end 
     end
 
-    local display_index = 1
-    local is_enabled = M.db[show_key]
-    local is_moving = M.db[move_key]
-    
-    if is_enabled then
-        local index = 1
-        while true do
-            local aura_data = C_UnitAuras.GetAuraDataByIndex("player", index, filter)
-            if not aura_data then break end
-
-            local duration = aura_data.duration or 0
-            local belongs_here = false
-            if filter == "HARMFUL" then belongs_here = true else
-                local is_static = (duration == 0)
-                local is_short = (duration > 0 and duration <= M.db.short_threshold)
-                local is_long = (duration > M.db.short_threshold)
-                belongs_here = (show_key == "show_static" and is_static) or (show_key == "show_short" and is_short) or (show_key == "show_long" and is_long)
-            end
-
-            if belongs_here then
-                local obj = self.icons[display_index]
-                if not obj then
-                    obj = CreateFrame("Frame", nil, self)
-                    obj.texture = obj:CreateTexture(nil, "ARTWORK")
-                    obj.time_text = obj:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-                    obj.bar = CreateFrame("StatusBar", nil, obj)
-                    obj.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-                    obj.bar_bg = obj.bar:CreateTexture(nil, "BACKGROUND")
-                    obj.bar_bg:SetAllPoints()
-                    obj.bar_bg:SetColorTexture(0, 0, 0, 0.5)
-                    obj.name_text = obj:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                    
-                    -- Add shadows for better readability on top of bars
-                    obj.name_text:SetShadowOffset(1, -1)
-                    obj.name_text:SetShadowColor(0, 0, 0, 1)
-                    obj.time_text:SetShadowOffset(1, -1)
-                    obj.time_text:SetShadowColor(0, 0, 0, 1)
-                    self.icons[display_index] = obj
-                end
-
-                obj:ClearAllPoints()
-                obj.texture:ClearAllPoints()
-                obj.bar:SetStatusBarColor(color.r, color.g, color.b)
-
-                if use_bars then  -- BAR LAYOUT
-                    obj:SetSize(frame_width - 12, 20)
-                    obj:SetPoint("TOPLEFT", self, "TOPLEFT", 6, -((display_index - 1) * (20 + spacing) + 6))
-                    
-                    obj.texture:SetSize(18, 18)
-                    obj.texture:SetPoint("LEFT", obj, "LEFT", 0, 0)
-                    
-                    obj.bar:Show()
-                    obj.bar:SetPoint("LEFT", obj.texture, "RIGHT", 5, 0)
-                    obj.bar:SetPoint("RIGHT", obj, "RIGHT", 0, 0)
-                    obj.bar:SetHeight(18)
-                    
-                    -- THE FIX: Parent text to the Bar and set high DrawLayer
-                    obj.name_text:SetParent(obj.bar) 
-                    obj.name_text:SetDrawLayer("OVERLAY", 7)
-                    obj.name_text:ClearAllPoints()
-                    obj.name_text:SetPoint("LEFT", obj.bar, "LEFT", 4, 0)
-                    obj.name_text:SetText(aura_data.name)
-                    obj.name_text:Show()
-                    
-                    obj.time_text:SetParent(obj.bar)
-                    obj.time_text:SetDrawLayer("OVERLAY", 7)
-                    obj.time_text:ClearAllPoints()
-                    obj.time_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
-                    obj.time_text:Show()
-
-                else  -- ICON LAYOUT
-                    obj:SetSize(32, 32)
-                    obj.bar:Hide()
-                    
-                    -- Reset Parents and Layers for Icon mode
-                    obj.name_text:SetParent(obj)
-                    obj.name_text:Hide()
-                    obj.time_text:SetParent(obj)
-                    obj.time_text:SetDrawLayer("OVERLAY", 1)
-                    obj.time_text:ClearAllPoints()
-                    
-                    obj.texture:SetAllPoints(obj)
-                    
-                    local icons_per_row = math.max(1, math.floor((frame_width - 12 + spacing) / (32 + spacing)))
-                    local col = (display_index - 1) % icons_per_row
-                    local row = math.floor((display_index - 1) / icons_per_row)
-                    
-                    obj:SetPoint("TOPLEFT", self, "TOPLEFT", col * (32 + spacing) + 6, -(row * (32 + spacing + 12) + 6))
-                    obj.time_text:SetPoint("TOP", obj, "BOTTOM", 0, -2)
-                end
-
-                obj.texture:SetTexture(aura_data.icon)
-                
-                if aura_data.expirationTime and aura_data.expirationTime > 0 then
-                    obj.time_text:Show()
-                    local function update()
-                        local remain = aura_data.expirationTime - GetTime()
-                        if remain < 0 then remain = 0 end
-                        obj.time_text:SetText(format_time(remain))
-                        if use_bars then obj.bar:SetMinMaxValues(0, aura_data.duration) obj.bar:SetValue(remain) end
-                    end
-                    update()
-                    obj.ticker = C_Timer.NewTicker(0.1, update)
-                else
-                    obj.time_text:Hide()
-                    if use_bars then obj.bar:SetMinMaxValues(0, 1) obj.bar:SetValue(1) end
-                end
-
-                obj:Show()
-                display_index = display_index + 1
-            end
-            index = index + 1
-        end
+    local is_moving = db[move_key]
+    if not db[show_key] then 
+        if is_moving then self:Show() else self:Hide() end
+        return 
     end
 
+    local icon_footprint = 32 + spacing
+    local icons_per_row = math_max(1, floor((frame_width - 12 + spacing) / icon_footprint))
+
+    local display_index = 1
+    local index = 1
+    
+    -- Main Scan Loop
+    while true do
+        local aura_data = GetAuraData("player", index, filter)
+        if not aura_data then break end
+
+        local duration = aura_data.duration or 0
+        local belongs_here = false
+        
+        -- Filter logic
+        if filter == "HARMFUL" then 
+            belongs_here = true 
+        else
+            if show_key == "show_static" then belongs_here = (duration == 0)
+            elseif show_key == "show_short" then belongs_here = (duration > 0 and duration <= short_threshold)
+            elseif show_key == "show_long" then belongs_here = (duration > short_threshold)
+            end
+        end
+
+        if belongs_here then
+            local obj = self.icons[display_index]
+
+            -- Initial frame creation (Lazy loading)
+            if not obj then
+                obj = CreateFrame("Frame", nil, self)
+                obj.texture = obj:CreateTexture(nil, "ARTWORK")
+                obj.time_text = obj:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                obj.bar = CreateFrame("StatusBar", nil, obj)
+                obj.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+                obj.bar_bg = obj.bar:CreateTexture(nil, "BACKGROUND")
+                obj.bar_bg:SetAllPoints()
+                obj.bar_bg:SetColorTexture(0, 0, 0, 0.5)
+                obj.name_text = obj:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                obj.name_text:SetShadowOffset(1, -1)
+                obj.name_text:SetShadowColor(0, 0, 0, 1)
+                obj.time_text:SetShadowOffset(1, -1)
+                obj.time_text:SetShadowColor(0, 0, 0, 1)
+
+                -- Tooltip scripts
+                obj:EnableMouse(true)
+                obj:SetScript("OnEnter", function(s)
+                    if s.aura_index then
+                        GameTooltip_SetDefaultAnchor(GameTooltip, s)
+                        GameTooltip:SetUnitAura("player", s.aura_index, filter)
+                        GameTooltip:Show()
+                    end
+                end)
+                obj:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                self.icons[display_index] = obj
+            end
+
+            obj.aura_index = index 
+            obj:ClearAllPoints()
+            obj.texture:ClearAllPoints()
+            
+            -- Handle Layout Styles (Bar vs Icon)
+            if use_bars then
+                obj:SetSize(frame_width - 12, 20)
+                obj:SetPoint("TOPLEFT", self, "TOPLEFT", 6, -((display_index - 1) * (20 + spacing) + 6))
+                obj.texture:SetSize(18, 18)
+                obj.texture:SetPoint("LEFT", obj, "LEFT", 0, 0)
+                obj.bar:Show()
+                obj.bar:SetStatusBarColor(color.r, color.g, color.b)
+                obj.bar:SetPoint("LEFT", obj.texture, "RIGHT", 5, 0)
+                obj.bar:SetPoint("RIGHT", obj, "RIGHT", 0, 0)
+                obj.bar:SetHeight(18)
+                obj.name_text:SetParent(obj.bar)
+                obj.name_text:SetPoint("LEFT", obj.bar, "LEFT", 4, 0)
+                obj.name_text:SetText(aura_data.name)
+                obj.name_text:Show()
+                obj.time_text:SetParent(obj.bar)
+                obj.time_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
+            else
+                obj:SetSize(32, 32)
+                obj.bar:Hide()
+                obj.name_text:Hide()
+                obj.texture:SetAllPoints(obj)
+                local col = (display_index - 1) % icons_per_row
+                local row = floor((display_index - 1) / icons_per_row)
+                obj:SetPoint("TOPLEFT", self, "TOPLEFT", col * icon_footprint + 6, -(row * (32 + spacing + 12) + 6))
+                obj.time_text:SetParent(obj)
+                obj.time_text:SetPoint("TOP", obj, "BOTTOM", 0, -2)
+            end
+
+            obj.texture:SetTexture(aura_data.icon)
+            obj.time_text:Show()
+
+            -- Ticker Logic for Countdown
+            if duration > 0 and aura_data.expirationTime then
+                local function update()
+                    local remain = aura_data.expirationTime - GetTime()
+                    if remain < 0 then remain = 0 end
+                    obj.time_text:SetText(format_time(remain))
+                    if use_bars then obj.bar:SetMinMaxValues(0, duration) obj.bar:SetValue(remain) end
+                end
+                update()
+                obj.ticker = C_Timer.NewTicker(0.1, update)
+            else
+                obj.time_text:SetText("") 
+                if use_bars then obj.bar:SetMinMaxValues(0, 1) obj.bar:SetValue(1) end
+            end
+
+            obj:Show()
+            display_index = display_index + 1
+        end
+        index = index + 1
+    end
+
+    -- Final Frame Sizing & Background visibility
     local active_count = display_index - 1
     if active_count > 0 or is_moving then
         self:Show()
-        local height = use_bars and (active_count * (20 + spacing) + 12) or (math.ceil(active_count / math.max(1, math.floor((frame_width - 12 + spacing) / (32 + spacing)))) * (32 + spacing + 12) + 12)
-        self:SetHeight(math.max(height, is_moving and 44 or 0))
-        self:SetBackdropColor(0, 0, 0, (M.db[bg_key] or is_moving) and 0.8 or 0)
-        self:SetBackdropBorderColor(1, 1, 1, (M.db[bg_key] or is_moving) and 1 or 0)
+        local height = use_bars and (active_count * (20 + spacing) + 12) or (math_ceil(active_count / icons_per_row) * (32 + spacing + 12) + 12)
+        self:SetHeight(math_max(height, is_moving and 44 or 0))
+        
+        local bg_alpha = (db[bg_key] or is_moving) and 0.8 or 0
+        self:SetBackdropColor(0, 0, 0, bg_alpha)
+        self:SetBackdropBorderColor(1, 1, 1, bg_alpha > 0 and 1 or 0)
         self.title_bar:SetShown(is_moving)
         self.bottom_title_bar:SetShown(is_moving)
         self.resizer:SetShown(is_moving)
@@ -219,9 +242,9 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     end
 end
 
----------------------------------------------------------
--- FRAME GENERATOR (Includes Handles and Resizer)
----------------------------------------------------------
+-- ============================================================================
+-- 6. AURA CONTAINER GENERATOR (Backdrop, Move Handles, Events)
+-- ============================================================================
 function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, spacing_key, display_name, is_debuff)
     local category = show_key:sub(6)
     local frame = CreateFrame("Frame", "LsTweaksAuraFrame_"..show_key, UIParent, "BackdropTemplate")    
@@ -265,9 +288,9 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     return frame
 end
 
----------------------------------------------------------
--- SETTINGS PANEL
----------------------------------------------------------
+-- ============================================================================
+-- 7. SETTINGS PANEL INTERFACE
+-- ============================================================================
 function M.build_settings(parent)
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 10, -10)
@@ -282,6 +305,7 @@ function M.build_settings(parent)
         { name = "Debuffs", show_key = "show_debuff", move_key = "move_debuff", timer_key = "timer_debuff", bg_key = "bg_debuff", scale_key = "scale_debuff", spacing_key = "spacing_debuff", is_debuff = true }
     }
 
+    -- Build Tabs and Tab Panels
     for i, data in ipairs(tab_data) do
         local tab = CreateFrame("Button", addon_name.."Tab"..i, parent, "PanelTabButtonTemplate")
         tab:SetText(data.name)
@@ -296,6 +320,7 @@ function M.build_settings(parent)
         p:Hide()
 
         if data.is_general then
+            -- General Tab Controls
             local b_buff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             b_buff:SetPoint("TOPLEFT", 16, -16)
             b_buff.Text:SetText("Disable Blizzard Buff Frame")
@@ -312,11 +337,11 @@ function M.build_settings(parent)
                 for k,v in pairs(M.frames) do M.update_auras(v, k, "move_"..k:sub(6), "timer_"..k:sub(6), "bg_"..k:sub(6), "scale_"..k:sub(6), "spacing_"..k:sub(6), k=="show_debuff" and "HARMFUL" or "HELPFUL") end
             end):SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 20, -40)
         else
+            -- Specific Aura Tab Controls
             local cat = data.show_key:sub(6)
             local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
             local function update() M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter) end
             
-            -- Row 1: Move & Bars Toggle
             local move_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             move_cb:SetPoint("TOPLEFT", 16, -16)
             move_cb.Text:SetText("Move Mode")
@@ -329,7 +354,6 @@ function M.build_settings(parent)
             bars_cb:SetChecked(M.db["use_bars_"..cat])
             bars_cb:SetScript("OnClick", function(self) M.db["use_bars_"..cat] = self:GetChecked() update() end)
 
-            -- Row 2: Enable & Show Background
             local enable_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             enable_cb:SetPoint("TOPLEFT", move_cb, "BOTTOMLEFT", 0, -4)
             enable_cb.Text:SetText("Enable Frame")
@@ -364,60 +388,71 @@ function M.build_settings(parent)
             c_text:SetPoint("LEFT", color_btn, "RIGHT", 5, 0)
             c_text:SetText("Bar Color")
 
-            -- Sliders
+            -- color reset button
+            local color_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+            color_reset:SetSize(80, 20)
+            color_reset:SetPoint("TOPLEFT", color_btn, "BOTTOMLEFT", 0, -5)
+            color_reset:SetText("Reset Color")
+            color_reset:SetScript("OnClick", function()
+                local default_color = defaults["color_"..cat]
+                if default_color then
+                    M.db["color_"..cat] = {r = default_color.r, g = default_color.g, b = default_color.b}
+                    color_btn:SetBackdropColor(default_color.r, default_color.g, default_color.b)
+                    update()
+                end
+            end)
+
+            -- sliders
             CreateSliderWithBox(addon_name..cat.."Scale", p, "Scale", 0.5, 2.5, 0.01, data.scale_key, update):SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", 20, -35)
             CreateSliderWithBox(addon_name..cat.."Spacing", p, "Spacing", 0, 40, 0.1, data.spacing_key, update):SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", 20, -85)
 
-            -- Reset Button
             local reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
             reset:SetSize(120, 22)
             reset:SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", -10, -140)
             reset:SetText("Reset Position")
-            reset:SetScript("OnClick", function() 
+            reset:SetScript("OnClick", function()
+
                 M.db.positions[data.show_key] = nil
                 local f = M.frames[data.show_key]
                 f:ClearAllPoints()
                 f:SetPoint("CENTER", UIParent, "CENTER", 0, data.is_debuff and -100 or 100)
             end)
         end
+
         tabs[i], panels[i] = tab, p
     end
 
     PanelTemplates_SetNumTabs(parent, #tab_data)
-    
-    -- Force a refresh on all tabs to clear the "glow/line" bug
     for i = 1, #tab_data do
-        if i == 1 then
-            panels[i]:Show()
-            PanelTemplates_SelectTab(tabs[i])
-        else
-            panels[i]:Hide()
-            PanelTemplates_DeselectTab(tabs[i])
-        end
+        if i == 1 then panels[i]:Show() PanelTemplates_SelectTab(tabs[i])
+        else panels[i]:Hide() PanelTemplates_DeselectTab(tabs[i]) end
     end
-    
-    -- Ensure the parent panel updates the tab display
     PanelTemplates_UpdateTabs(parent)
-
 end
 
----------------------------------------------------------
--- INITIALIZATION
----------------------------------------------------------
+-- ============================================================================
+-- 8. INITIALIZATION & ADDON LOADING
+-- ============================================================================
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, name)
     if name == addon_name then
+        -- Load Database
         if not Ls_Tweeks_DB then Ls_Tweeks_DB = {} end
         for k, v in pairs(defaults) do if Ls_Tweeks_DB[k] == nil then Ls_Tweeks_DB[k] = v end end
         M.db = Ls_Tweeks_DB
+        
+        -- Create the 4 Main Containers
         M.create_aura_frame("show_static", "move_static", "timer_static", "bg_static", "scale_static", "spacing_static", "Static", false)
         M.create_aura_frame("show_short", "move_short", "timer_short", "bg_short", "scale_short", "spacing_short", "Short", false)
         M.create_aura_frame("show_long", "move_long", "timer_long", "bg_long", "scale_long", "spacing_long", "Long", false)
         M.create_aura_frame("show_debuff", "move_debuff", "timer_debuff", "bg_debuff", "scale_debuff", "spacing_debuff", "Debuffs", true)
+        
+        -- Apply Blizzard UI settings
         toggle_blizz_buffs(M.db.disable_blizz_buffs)
         toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
     end
 end)
 
+-- Register with the Main Addon Settings Panel
 addon.register_category("Buffs & Debuffs", function(parent) M.build_settings(parent) end)
