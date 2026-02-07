@@ -320,6 +320,7 @@ function M.build_settings(parent)
         p:Hide()
 
         if data.is_general then
+
             -- General Tab Controls
             local b_buff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             b_buff:SetPoint("TOPLEFT", 16, -16)
@@ -336,7 +337,12 @@ function M.build_settings(parent)
             CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", function() 
                 for k,v in pairs(M.frames) do M.update_auras(v, k, "move_"..k:sub(6), "timer_"..k:sub(6), "bg_"..k:sub(6), "scale_"..k:sub(6), "spacing_"..k:sub(6), k=="show_debuff" and "HARMFUL" or "HELPFUL") end
             end):SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 20, -40)
+
+            -- Global Reset
+            addon.CreateGlobalReset(p, b_debuff, M.db, defaults)
+
         else
+
             -- Specific Aura Tab Controls
             local cat = data.show_key:sub(6)
             local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
