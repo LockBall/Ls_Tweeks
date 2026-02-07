@@ -129,7 +129,10 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, filter)
                 end
                 icon_frame.auraIndex = index
                 icon_frame.texture:SetTexture(aura_data.icon)
-                icon_frame:SetPoint("TOPLEFT", self, "TOPLEFT", (display_index - 1) * 38 + 6, -6)                
+                
+                -- JUSTIFIED TOP-LEFT
+                icon_frame:SetPoint("TOPLEFT", self, "TOPLEFT", (display_index - 1) * 38 + 6, -6)
+                
                 if is_timer_enabled and aura_data.expirationTime and aura_data.expirationTime > 0 then
                     icon_frame.time_text:Show()
                     local function update_text()
@@ -166,11 +169,10 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, display_name
     local filter = is_debuff and "HARMFUL" or "HELPFUL"
     local frame = CreateFrame("Frame", "LsTweaksAuraFrame_"..show_key, UIParent, "BackdropTemplate")    
     frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 }})
-    frame:SetSize(220, 55)
+    frame:SetSize(220, 54)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
 
-    -- Load saved position
     local pos = M.db.positions[show_key]
     if pos then
         frame:SetPoint(pos.point, UIParent, pos.rel_point, pos.x, pos.y)
@@ -257,18 +259,26 @@ function M.build_settings(parent)
             b_debuff:SetChecked(M.db.disable_blizz_debuffs)
             b_debuff:SetScript("OnClick", function(self) M.db.disable_blizz_debuffs = self:GetChecked() toggle_blizz_debuffs(M.db.disable_blizz_debuffs) end)
 
+            -- SLIDER FIX
             local slider = CreateFrame("Slider", addon_name.."ThresholdSlider", p, "OptionsSliderTemplate")
-            slider:SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 10, -30)
+            slider:SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 20, -40)
             slider:SetMinMaxValues(10, 300)
             slider:SetValueStep(10)
             slider:SetObeyStepOnDrag(true)
             slider:SetValue(M.db.short_threshold)
-            _G[slider:GetName() .. 'Low']:SetText('10s')
-            _G[slider:GetName() .. 'High']:SetText('300s')
-            _G[slider:GetName() .. 'Text']:SetText("Short Buff Threshold: " .. M.db.short_threshold .. "s")
+            
+            -- Hide generic Low/High strings
+            _G[slider:GetName() .. 'Low']:SetText('')
+            _G[slider:GetName() .. 'High']:SetText('')
+            
+            -- Main Label
+            local label = _G[slider:GetName() .. 'Text']
+            label:SetText("Short Buff Threshold: " .. M.db.short_threshold .. "s")
+            
             slider:SetScript("OnValueChanged", function(self, value)
+                value = math.floor(value)
                 M.db.short_threshold = value
-                _G[self:GetName() .. 'Text']:SetText("Short Buff Threshold: " .. value .. "s")
+                label:SetText("Short Buff Threshold: " .. value .. "s")
                 for k, v in pairs(M.frames) do 
                     local f_key = k == "show_debuff" and "HARMFUL" or "HELPFUL"
                     M.update_auras(v, k, "move_"..k:sub(6), "timer_"..k:sub(6), "bg_"..k:sub(6), f_key) 
@@ -290,7 +300,6 @@ local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, name)
     if name == addon_name then
-        -- INTENTIONAL SPELLING: Ls_Tweeks_DB
         if not Ls_Tweeks_DB then Ls_Tweeks_DB = {} end
         for k, v in pairs(defaults) do
             if Ls_Tweeks_DB[k] == nil then Ls_Tweeks_DB[k] = v end
