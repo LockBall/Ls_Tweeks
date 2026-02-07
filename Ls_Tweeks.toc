@@ -13,8 +13,9 @@ Libs\CallbackHandler-1.0.lua
 Libs\LibDataBroker-1.1.lua
 Libs\LibDBIcon-1.0.lua
 
-core/init.lua
-core/main_frame.lua
-core/minimap_button.lua
+core\init.lua
+core\main_frame.lua
+core\minimap_button.lua
 
-modules/combat_text_portrait.lua
+modules\combat_text.lua
+modules\aura_frames.lua
