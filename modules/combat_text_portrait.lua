@@ -1,9 +1,6 @@
 local addon_name, addon = ...
 
----------------------------------------------------------
 -- Internal helpers
----------------------------------------------------------
-
 local function hide_portrait_combat_text()
     local h = PlayerFrame
         and PlayerFrame.PlayerFrameContent
@@ -28,9 +25,7 @@ local function show_portrait_combat_text()
     end
 end
 
----------------------------------------------------------
 -- Update function
----------------------------------------------------------
 function addon.update_combat_text_portrait()
     if Ls_Tweeks_DB.combat_text_portrait_disabled then
         hide_portrait_combat_text()
@@ -39,9 +34,7 @@ function addon.update_combat_text_portrait()
     end
 end
 
----------------------------------------------------------
 -- Module initializer
----------------------------------------------------------
 function addon.init_combat_text_portrait()
     local f = CreateFrame("Frame")
     f:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -50,9 +43,7 @@ function addon.init_combat_text_portrait()
     end)
 end
 
----------------------------------------------------------
 -- CATEGORY UI
----------------------------------------------------------
 addon.register_category("Combat Text", function(parent)
     local cb = CreateFrame("CheckButton", "LST_CombatTextPortraitCB", parent, "InterfaceOptionsCheckButtonTemplate")
     cb:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, -20)

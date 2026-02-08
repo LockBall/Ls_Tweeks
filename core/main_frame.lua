@@ -71,7 +71,7 @@ local function create_main_frame()
     content_area:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
     content_area:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     content_area:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
-
+    content_area:SetFrameLevel(frame:GetFrameLevel() + 1)
     frame.content_area = content_area
 
     -------- STORE AND RETURN --------
@@ -81,21 +81,8 @@ end
 
 -------- create about page --------
 local function build_about_page(parent)
-    -- Clear previous content (frames)
-    for _, child in ipairs({ parent:GetChildren() }) do
-        child:Hide()
-        child:SetParent(nil)
-    end
-
-    -- Clear previous content (fontstrings, textures, etc.)
-    for _, region in ipairs({ parent:GetRegions() }) do
-        region:Hide()
-        region:SetParent(nil)
-    end
-
-    -- populate the About page
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    title:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -10)
+    title:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, -10)
     title:SetText("To begin, click a category button on the left.")
 
     local version = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -109,22 +96,37 @@ local function build_about_page(parent)
     desc:SetText("A modular collection of UI tweaks and enhancements.")
 end
 
--------- INITIALIZER (called from init.lua) --------
+-------- INITIALIZER (Optimized Tab System) --------
 function addon.init_main_frame()
     local frame = create_main_frame()
-
-    -- Track which sidebar button is selected
     local selected_button = nil
+    
+    -- Cache for tab frames to prevent recreation
+    frame.tabs = {} 
 
-    local function select_button(btn)
-        -- Reset previous button
-        if selected_button then
-            selected_button:UnlockHighlight()
-        end
-
-        -- Highlight new button
+    -- Logic to toggle between modules without orphaning frames
+    local function select_tab(name, builder, btn)
+        -- Highlight management
+        if selected_button then selected_button:UnlockHighlight() end
         btn:LockHighlight()
         selected_button = btn
+
+        -- Hide all currently initialized tabs
+        for _, tab in pairs(frame.tabs) do
+            tab:Hide()
+        end
+
+        -- Initialize the tab if it's the first time visiting this category
+        if not frame.tabs[name] then
+            local new_tab = CreateFrame("Frame", nil, frame.content_area)
+            new_tab:SetAllPoints()
+            new_tab:SetFrameLevel(frame.content_area:GetFrameLevel() + 2)
+            builder(new_tab) 
+            frame.tabs[name] = new_tab
+        end
+
+        -- Show the target tab
+        frame.tabs[name]:Show()
     end
 
     -------- BUILD SIDEBAR BUTTONS --------
@@ -137,8 +139,7 @@ function addon.init_main_frame()
     about_btn:SetText("About")
 
     about_btn:SetScript("OnClick", function()
-        select_button(about_btn)
-        build_about_page(frame.content_area)
+        select_tab("About", build_about_page, about_btn)
     end)
 
     -- Move Y down for categories
@@ -153,26 +154,12 @@ function addon.init_main_frame()
         btn:SetText(cat.name)
 
         btn:SetScript("OnClick", function()
-            select_button(btn)
-
-            -- Clear previous content (frames)
-            for _, child in ipairs({ frame.content_area:GetChildren() }) do
-                child:Hide()
-                child:SetParent(nil)
-            end
-
-            -- Clear previous content (fontstrings, textures, etc.)
-            for _, region in ipairs({ frame.content_area:GetRegions() }) do
-                region:Hide()
-                region:SetParent(nil)
-            end
-
-            cat.builder(frame.content_area)
+            select_tab(cat.name, cat.builder, btn)
         end)
 
         y = y - 26
     end
 
-    select_button(about_btn)
-    build_about_page(frame.content_area) -- populate right side when user first opens window
+    -- Initial load of the 'About' page
+    select_tab("About", build_about_page, about_btn)
 end

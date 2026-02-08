@@ -2,45 +2,75 @@ local addon_name, addon = ...
 
 function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
-    -- --- CONFIGURATION VARIABLES ---
+    -------- CONFIGURATION VARIABLES --------
     local DIM_ALPHA = 0.5    -- Faded transparency when the button is locked
     local READY_ALPHA = 0.6  -- Full transparency when 'arm' is typed
 
     -- PULSE Params
     local PULSE_MIN = 0.0    -- Minimum brightness during the pulse cycle
     local PULSE_MAX = 1.1    -- Maximum brightness during the pulse cycle
-    local PULSE_SPEED = 0.75  -- Duration in seconds for one pulse cycle (lower is faster)
+    local PULSE_SPEED = 0.75 -- Duration in seconds for one pulse cycle (lower is faster)
 
     -- MASK SETTINGS
     local MASK_INSET = 13  -- Increase to make circular "window" smaller (keeps glow off the metal frame)
 
     -- GLOW SIZE PARAMETERS
-    -- GLOW_SIZE .
     -- BEZEL_SPILL controls how much the glow overlaps the bezel (adds illumination).
     local GLOW_SIZE = 60     -- core glow size, lower # = decreased diameter 
     local BEZEL_SPILL = 7    -- Extra pixels added to glow size to illuminate bezel
-
     ---------------------------------
 
     -- CONTAINER
     local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     container:SetSize(parent:GetWidth() - 40, 120)
-    container:SetPoint("TOPLEFT", anchorFrame, "BOTTOMLEFT", 0, -80)
+    container:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, -200)
+    container:SetFrameLevel(parent:GetFrameLevel() + 10)
 
+    -- BACKDROP
     container:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    container:SetBackdropColor(0, 0, 0, 0.4)
-    container:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.9)
+    
+    container:SetBackdropColor(0.12, 0.14, 0.16, 0.9) 
+    container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6)
+
+    -- BOLTED PANEL DETAIL (Corrected Masking Logic)
+    local function CreateScrew(point, x, y)
+        -- Base Bolt Texture
+        local s = container:CreateTexture(nil, "OVERLAY", nil, 6)
+        s:SetSize(10, 10)
+        s:SetTexture("Interface\\Buttons\\WHITE8x8")
+        s:SetVertexColor(0.6, 0.6, 0.6) -- Slightly darker steel
+        s:SetPoint(point, container, point, x, y)
+
+        -- Unique Mask for THIS screw
+        local m = container:CreateMaskTexture()
+        m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(s)
+        s:AddMaskTexture(m)
+
+        -- Shine Dot
+        local shine = container:CreateTexture(nil, "OVERLAY", nil, 7)
+        shine:SetSize(3, 3)
+        shine:SetTexture("Interface\\Buttons\\WHITE8x8")
+        shine:SetVertexColor(1, 1, 1, 0.6) -- Subtle highlight
+        shine:SetPoint("CENTER", s, "CENTER", -2, 2)
+        shine:AddMaskTexture(m) -- Uses the same unique mask
+    end
+
+    CreateScrew("TOPLEFT", 8, -8)
+    CreateScrew("TOPRIGHT", -8, -8)
+    CreateScrew("BOTTOMLEFT", 8, 8)
+    CreateScrew("BOTTOMRIGHT", -8, 8)
 
     -- TITLE
     local title = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", container, "TOP", 0, -15)
-    title:SetText("MODULE RESET")
-    title:SetTextColor(1, 0, 0)
+    title:SetText("Module Reset")
+    title:SetTextColor(1, 0.82, 0)
 
     -- INSTRUCTION LABEL
     local label = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -63,6 +93,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     bgTex:SetAllPoints()
     bgTex:SetTexture("Interface\\Icons\\inv_misc_enggizmos_27")
     bgTex:SetAlpha(DIM_ALPHA)
+    btn.bgTex = bgTex -- Store on button for scope access
 
     -- PULSING OVERLAY
     local pulseTex = btn:CreateTexture(nil, "ARTWORK")
@@ -71,6 +102,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     pulseTex:SetTexture("Interface\\Icons\\inv_misc_enggizmos_27")
     pulseTex:SetBlendMode("ADD")
     pulseTex:SetAlpha(0)
+    btn.pulseTex = pulseTex -- Store on button for scope access
 
     -- CIRCULAR MASK
     local mask = btn:CreateMaskTexture()
@@ -93,44 +125,47 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     -- PULSE ANIMATION (Alpha only – no scale to avoid jitter)
     local ag = pulseTex:CreateAnimationGroup()
-
     local animAlpha = ag:CreateAnimation("Alpha")
     animAlpha:SetFromAlpha(PULSE_MIN)
     animAlpha:SetToAlpha(PULSE_MAX)
     animAlpha:SetDuration(PULSE_SPEED)
     animAlpha:SetSmoothing("IN_OUT")
-
     ag:SetLooping("BOUNCE")
+    btn.ag = ag -- Store on button for easy access
 
     -- --- SECURITY LOGIC: AUTO-CLEAR ON HIDE ---
     container:SetScript("OnHide", function()
         eb:SetText("")    -- Clear the text box
         eb:ClearFocus()   -- Remove cursor if active
+        btn:Disable()     -- Explicitly disable to ensure state reset
+        btn.ag:Stop()     -- Stop animation immediately
     end)
 
     -- INTERACTIVE SCRIPTS
     btn:SetScript("OnEnter", function(self)
-        if self:IsEnabled() then ag:Play() end
+        if self:IsEnabled() then self.ag:Play() end
     end)
 
     btn:SetScript("OnLeave", function(self)
-        ag:Stop()
-        if self:IsEnabled() then pulseTex:SetAlpha(READY_ALPHA) else pulseTex:SetAlpha(0) end
+        self.ag:Stop()
+        if self:IsEnabled() then self.pulseTex:SetAlpha(READY_ALPHA) else self.pulseTex:SetAlpha(0) end
     end)
 
     btn:Disable()
 
     -- ACTIVATION LOGIC
     eb:SetScript("OnTextChanged", function(self)
-        if self:GetText():lower() == "arm" then
+        local text = self:GetText():lower()
+        if text == "arm" then
             btn:Enable()
-            bgTex:SetAlpha(READY_ALPHA)
-            pulseTex:SetAlpha(READY_ALPHA)
+            btn.bgTex:SetAlpha(READY_ALPHA)
+            btn.pulseTex:SetAlpha(READY_ALPHA)
+            self:ClearFocus() -- UI Polish: Closes keyboard/cursor when armed
         else
             btn:Disable()
-            ag:Stop()
-            bgTex:SetAlpha(DIM_ALPHA)
-            pulseTex:SetAlpha(0)
+            btn.ag:Stop()
+            btn.bgTex:SetAlpha(DIM_ALPHA)
+            btn.pulseTex:SetAlpha(0)
         end
     end)
 
@@ -138,7 +173,9 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     btn:SetScript("OnClick", function()
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
         table.wipe(db)
-        for k, v in pairs(defaults) do db[k] = v end
+        if type(defaults) == "table" then
+            for k, v in pairs(defaults) do db[k] = v end
+        end
         if db.positions then db.positions = {} end
         ReloadUI()
     end)

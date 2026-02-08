@@ -1,7 +1,7 @@
 local addon_name, addon = ...
 
 -- ============================================================================
--- 1. CACHED GLOBALS & CONSTANTS
+-- CACHED GLOBALS & CONSTANTS
 -- ============================================================================
 local floor, math_max, math_ceil = floor, math.max, math.ceil
 local GetAuraData = C_UnitAuras.GetAuraDataByIndex
@@ -11,7 +11,7 @@ local M = {}
 addon.aura_frames = M
 
 -- ============================================================================
--- 2. DEFAULT SETTINGS
+-- DEFAULT SETTINGS
 -- ============================================================================
 local defaults = {
     disable_blizz_buffs = false,
@@ -34,7 +34,7 @@ M.db = {}
 M.frames = {}
 
 -- ============================================================================
--- 3. UTILITY FUNCTIONS (Time Formatting & Blizzard UI Toggles)
+-- UTILITY FUNCTIONS (Time Formatting & Blizzard UI Toggles)
 -- ============================================================================
 local function format_time(s)
     if s >= 3600 then return format("%dh", floor(s/3600)) end
@@ -52,7 +52,7 @@ local function toggle_blizz_debuffs(hide)
 end
 
 -- ============================================================================
--- 4. GUI COMPONENT BUILDERS (Sliders, etc.)
+-- GUI COMPONENT BUILDERS (Sliders, etc.)
 -- ============================================================================
 local function CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db_key, callback)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
@@ -82,7 +82,7 @@ local function CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db
 end
 
 -- ============================================================================
--- 5. MAIN CORE LOGIC (Aura Scanning & Rendering)
+-- MAIN CORE LOGIC (Aura Scanning & Rendering)
 -- ============================================================================
 function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, spacing_key, filter)
     if not self or not self.icons then return end
@@ -243,7 +243,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 end
 
 -- ============================================================================
--- 6. AURA CONTAINER GENERATOR (Backdrop, Move Handles, Events)
+-- AURA CONTAINER GENERATOR (Backdrop, Move Handles, Events)
 -- ============================================================================
 function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, spacing_key, display_name, is_debuff)
     local category = show_key:sub(6)
@@ -289,7 +289,7 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
 end
 
 -- ============================================================================
--- 7. SETTINGS PANEL INTERFACE
+-- SETTINGS PANEL INTERFACE
 -- ============================================================================
 function M.build_settings(parent)
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -437,7 +437,7 @@ function M.build_settings(parent)
 end
 
 -- ============================================================================
--- 8. INITIALIZATION & ADDON LOADING
+-- INITIALIZATION & ADDON LOADING
 -- ============================================================================
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
