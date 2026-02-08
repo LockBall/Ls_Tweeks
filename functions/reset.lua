@@ -29,24 +29,25 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     -- BACKDROP
     container:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, 
+        edgeSize = 30, -- Increased from 16 to 24 for thickness
+        insets = { left = 5, right = 5, top = 5, bottom = 5 } -- Increased insets to match thicker edge
     })
-    
-    container:SetBackdropColor(0.12, 0.14, 0.16, 0.9) 
+    container:SetBackdropColor(0.1, 0.12, 0.15, 1.0) 
     container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6)
 
-    -- BOLTED PANEL DETAIL (Corrected Masking Logic)
+    -- BOLTED PANEL DETAIL
     local function CreateScrew(point, x, y)
-        -- Base Bolt Texture
+
+        -- Base Rivet Texture
         local s = container:CreateTexture(nil, "OVERLAY", nil, 6)
         s:SetSize(10, 10)
         s:SetTexture("Interface\\Buttons\\WHITE8x8")
-        s:SetVertexColor(0.6, 0.6, 0.6) -- Slightly darker steel
+        s:SetVertexColor(0.3, 0.3, 0.3, 1.0) -- red, green, blue, alpha
         s:SetPoint(point, container, point, x, y)
 
-        -- Unique Mask for THIS screw
+        -- Unique Mask for THIS Rivet
         local m = container:CreateMaskTexture()
         m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         m:SetAllPoints(s)
@@ -55,16 +56,23 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
         -- Shine Dot
         local shine = container:CreateTexture(nil, "OVERLAY", nil, 7)
         shine:SetSize(3, 3)
-        shine:SetTexture("Interface\\Buttons\\WHITE8x8")
-        shine:SetVertexColor(1, 1, 1, 0.6) -- Subtle highlight
+        shine:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+        shine:SetVertexColor(0.8, 0.8, 0.8, 0.4) -- Subtle highlight
         shine:SetPoint("CENTER", s, "CENTER", -2, 2)
         shine:AddMaskTexture(m) -- Uses the same unique mask
+
+        -- depth shadow
+        local shadow = container:CreateTexture(nil, "OVERLAY", nil, 5)
+        shadow:SetSize(12, 12) -- Slightly larger than the 10x10 rivet
+        shadow:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+        shadow:SetVertexColor(0, 0, 0, 0.4) -- Very faint black shadow
+        shadow:SetPoint("CENTER", s, "CENTER", 0, 0)
     end
 
-    CreateScrew("TOPLEFT", 8, -8)
-    CreateScrew("TOPRIGHT", -8, -8)
-    CreateScrew("BOTTOMLEFT", 8, 8)
-    CreateScrew("BOTTOMRIGHT", -8, 8)
+    CreateScrew("TOPLEFT", 14, -14)
+    CreateScrew("TOPRIGHT", -14, -14)
+    CreateScrew("BOTTOMLEFT", 14, 14)
+    CreateScrew("BOTTOMRIGHT", -14, 14)
 
     -- TITLE
     local title = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -74,21 +82,23 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     -- INSTRUCTION LABEL
     local label = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -45)
-    label:SetText("Input 'arm' !")
+    label:SetPoint("TOPLEFT", container, "TOPLEFT", 28, -45)
+    label:SetText(" Input 'arm' code !?")
 
     -- INPUT BOX
     local eb = CreateFrame("EditBox", nil, container, "InputBoxTemplate")
-    eb:SetSize(100, 20)
-    eb:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 5, -8)
+    eb:SetSize(75, 20)
+    eb:SetPoint("TOP", label, "TOP", 0, -16)
     eb:SetAutoFocus(false)
+    eb:SetTextInsets(0, 8, 0, 0) -- Pixels to push text from left, right, top, bottom edge of box
+    eb:SetJustifyH("CENTER")
 
-    -- BIG RED BUTTON
+    -- BIG RED BUTTON ICON
     local btn = CreateFrame("Button", nil, container)
     btn:SetSize(64, 64)
     btn:SetPoint("TOP", container, "TOP", 0, -40)
 
-    -- STATIC BASE TEXTURE
+    -- STATIC BUTTON TEXTURE
     local bgTex = btn:CreateTexture(nil, "BACKGROUND")
     bgTex:SetAllPoints()
     bgTex:SetTexture("Interface\\Icons\\inv_misc_enggizmos_27")
