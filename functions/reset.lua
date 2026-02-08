@@ -12,13 +12,12 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     local PULSE_SPEED = 0.75 -- Duration in seconds for one pulse cycle (lower is faster)
 
     -- MASK SETTINGS
-    local MASK_INSET = 13  -- Increase to make circular "window" smaller (keeps glow off the metal frame)
+    local MASK_INSET = 13  -- Increase to make circular "window" smaller
 
     -- GLOW SIZE PARAMETERS
-    -- BEZEL_SPILL controls how much the glow overlaps the bezel (adds illumination).
-    local GLOW_SIZE = 60     -- core glow size, lower # = decreased diameter 
-    local BEZEL_SPILL = 7    -- Extra pixels added to glow size to illuminate bezel
-    ---------------------------------
+    local GLOW_SIZE = 60 
+    local BEZEL_SPILL = 7    
+    -----------------------------------------
 
     -- CONTAINER
     local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
@@ -28,45 +27,35 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     -- BACKDROP
     container:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = "Interface\\FrameGeneral\\UI-Background-Rock", -- Grainy stone/metal texture
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, 
-        edgeSize = 30, -- Increased from 16 to 24 for thickness
-        insets = { left = 5, right = 5, top = 5, bottom = 5 } -- Increased insets to match thicker edge
+        tile = true, 
+        tileSize = 256,
+        edgeSize = 30,
+        insets = { left = 5, right = 5, top = 5, bottom = 5 }
     })
-    container:SetBackdropColor(0.1, 0.12, 0.15, 1.0) 
+    container:SetBackdropColor(0.65, 0.6, 0.75, 1.0 ) 
     container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6)
 
-    -- BOLTED PANEL DETAIL
+    -- BOLTED PANEL DETAIL (Rivets)
     local function CreateScrew(point, x, y)
-
-        -- Base Rivet Texture
         local s = container:CreateTexture(nil, "OVERLAY", nil, 6)
         s:SetSize(10, 10)
         s:SetTexture("Interface\\Buttons\\WHITE8x8")
-        s:SetVertexColor(0.3, 0.3, 0.3, 1.0) -- red, green, blue, alpha
+        s:SetVertexColor(0.3, 0.3, 0.3, 1.0)
         s:SetPoint(point, container, point, x, y)
 
-        -- Unique Mask for THIS Rivet
         local m = container:CreateMaskTexture()
         m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         m:SetAllPoints(s)
         s:AddMaskTexture(m)
 
-        -- Shine Dot
         local shine = container:CreateTexture(nil, "OVERLAY", nil, 7)
         shine:SetSize(3, 3)
         shine:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
-        shine:SetVertexColor(0.8, 0.8, 0.8, 0.4) -- Subtle highlight
+        shine:SetVertexColor(0.8, 0.8, 0.8, 0.4)
         shine:SetPoint("CENTER", s, "CENTER", -2, 2)
-        shine:AddMaskTexture(m) -- Uses the same unique mask
-
-        -- depth shadow
-        local shadow = container:CreateTexture(nil, "OVERLAY", nil, 5)
-        shadow:SetSize(12, 12) -- Slightly larger than the 10x10 rivet
-        shadow:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
-        shadow:SetVertexColor(0, 0, 0, 0.4) -- Very faint black shadow
-        shadow:SetPoint("CENTER", s, "CENTER", 0, 0)
+        shine:AddMaskTexture(m)
     end
 
     CreateScrew("TOPLEFT", 14, -14)
@@ -90,8 +79,10 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     eb:SetSize(75, 20)
     eb:SetPoint("TOP", label, "TOP", 0, -16)
     eb:SetAutoFocus(false)
-    eb:SetTextInsets(0, 8, 0, 0) -- Pixels to push text from left, right, top, bottom edge of box
+    eb:SetTextInsets(0, 7, 0, 0)
     eb:SetJustifyH("CENTER")
+    eb:SetFontObject("NumberFontNormal")
+    eb:SetTextColor(1, 1, 1)
 
     -- BIG RED BUTTON ICON
     local btn = CreateFrame("Button", nil, container)
@@ -103,7 +94,6 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     bgTex:SetAllPoints()
     bgTex:SetTexture("Interface\\Icons\\inv_misc_enggizmos_27")
     bgTex:SetAlpha(DIM_ALPHA)
-    btn.bgTex = bgTex -- Store on button for scope access
 
     -- PULSING OVERLAY
     local pulseTex = btn:CreateTexture(nil, "ARTWORK")
@@ -112,7 +102,6 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     pulseTex:SetTexture("Interface\\Icons\\inv_misc_enggizmos_27")
     pulseTex:SetBlendMode("ADD")
     pulseTex:SetAlpha(0)
-    btn.pulseTex = pulseTex -- Store on button for scope access
 
     -- CIRCULAR MASK
     local mask = btn:CreateMaskTexture()
@@ -133,7 +122,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     local pushed = btn:GetPushedTexture()
     pushed:SetBlendMode("MOD")
 
-    -- PULSE ANIMATION (Alpha only – no scale to avoid jitter)
+    -- PULSE ANIMATION
     local ag = pulseTex:CreateAnimationGroup()
     local animAlpha = ag:CreateAnimation("Alpha")
     animAlpha:SetFromAlpha(PULSE_MIN)
@@ -141,41 +130,54 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     animAlpha:SetDuration(PULSE_SPEED)
     animAlpha:SetSmoothing("IN_OUT")
     ag:SetLooping("BOUNCE")
-    btn.ag = ag -- Store on button for easy access
 
     -- --- SECURITY LOGIC: AUTO-CLEAR ON HIDE ---
     container:SetScript("OnHide", function()
-        eb:SetText("")    -- Clear the text box
-        eb:ClearFocus()   -- Remove cursor if active
-        btn:Disable()     -- Explicitly disable to ensure state reset
-        btn.ag:Stop()     -- Stop animation immediately
+        eb:SetText("")
+        eb:ClearFocus()
+        btn:Disable()
+        ag:Stop()
     end)
 
     -- INTERACTIVE SCRIPTS
     btn:SetScript("OnEnter", function(self)
-        if self:IsEnabled() then self.ag:Play() end
+        if self:IsEnabled() then ag:Play() end
     end)
 
     btn:SetScript("OnLeave", function(self)
-        self.ag:Stop()
-        if self:IsEnabled() then self.pulseTex:SetAlpha(READY_ALPHA) else self.pulseTex:SetAlpha(0) end
+        ag:Stop()
+        if self:IsEnabled() then 
+            pulseTex:SetAlpha(READY_ALPHA) 
+        else 
+            pulseTex:SetAlpha(0) 
+        end
     end)
 
     btn:Disable()
 
-    -- ACTIVATION LOGIC
+    -- TERMINAL INPUT LOGIC
     eb:SetScript("OnTextChanged", function(self)
-        local text = self:GetText():lower()
-        if text == "arm" then
+        local rawText = self:GetText()
+        local upperText = rawText:upper()
+
+        if rawText ~= upperText then
+            self:SetText(upperText)
+        end
+
+        if upperText == "ARM" then
             btn:Enable()
-            btn.bgTex:SetAlpha(READY_ALPHA)
-            btn.pulseTex:SetAlpha(READY_ALPHA)
-            self:ClearFocus() -- UI Polish: Closes keyboard/cursor when armed
+            bgTex:SetAlpha(READY_ALPHA)
+            pulseTex:SetAlpha(READY_ALPHA)
+            self:ClearFocus()
+            self:SetFontObject("NumberFont_Shadow_Med")
+            self:SetTextColor(0, 1, 0) 
         else
             btn:Disable()
-            btn.ag:Stop()
-            btn.bgTex:SetAlpha(DIM_ALPHA)
-            btn.pulseTex:SetAlpha(0)
+            ag:Stop()
+            bgTex:SetAlpha(DIM_ALPHA)
+            pulseTex:SetAlpha(0)
+            self:SetFontObject("NumberFontNormal")
+            self:SetTextColor(1, 1, 1)
         end
     end)
 
