@@ -1,8 +1,6 @@
 local addon_name, addon = ...
 
--- ============================================================================
 -- CACHED GLOBALS & CONSTANTS
--- ============================================================================
 local floor, math_max, math_ceil = floor, math.max, math.ceil
 local GetAuraData = C_UnitAuras.GetAuraDataByIndex
 local GetTime = GetTime
@@ -10,32 +8,70 @@ local GetTime = GetTime
 local M = {}
 addon.aura_frames = M
 
--- ============================================================================
 -- DEFAULT SETTINGS
--- ============================================================================
 local defaults = {
+    -- Global Toggles
     disable_blizz_buffs = false,
     disable_blizz_debuffs = false,
     short_threshold = 60,
     
-    show_static = false, move_static = false, timer_static = false, bg_static = true, scale_static = 1.0, spacing_static = 6.0, width_static = 200, use_bars_static = false,
-    color_static = {r = 0, g = 0.5, b = 1},
-    show_short = false, move_short = false, timer_short = true, bg_short = true, scale_short = 1.0, spacing_short = 6.0, width_short = 200, use_bars_short = false,
-    color_short = {r = 0, g = 0.5, b = 1},
-    show_long = false, move_long = false, timer_long = true, bg_long = true, scale_long = 1.0, spacing_long = 6.0, width_long = 200, use_bars_long = false,
-    color_long = {r = 0, g = 0.5, b = 1},
-    show_debuff = false, move_debuff = false, timer_debuff = true, bg_debuff = true, scale_debuff = 1.0, spacing_debuff = 6.0, width_debuff = 200, use_bars_debuff = false,
-    color_debuff = {r = 1, g = 0.2, b = 0.2},
+    -- STATIC
+    show_static     = false,
+    move_static     = false,
+    timer_static    = false,
+    bg_static       = false,
+    scale_static    = 1.0,
+    spacing_static  = 2.00,
+    width_static    = 200,
+    use_bars_static = false,
+    color_static    = { r = 0, g = 0.5, b = 1 },
+
+    -- SHORT
+    show_short      = false,
+    move_short      = false,
+    timer_short     = true,
+    bg_short        = false,
+    scale_short     = 1.0,
+    spacing_short   = 2.00,
+    width_short     = 200,
+    use_bars_short  = true,
+    color_short     = { r = 0, g = 0.5, b = 1 },
+
+    -- LONG
+    show_long       = false,
+    move_long       = false,
+    timer_long      = true,
+    bg_long         = false,
+    scale_long      = 1.0,
+    spacing_long    = 2.00,
+    width_long      = 200,
+    use_bars_long   = false,
+    color_long      = { r = 0, g = 0.5, b = 1 },
+
+    -- DEBUFFS
+    show_debuff     = false,
+    move_debuff     = false,
+    timer_debuff    = true,
+    bg_debuff       = false,
+    scale_debuff    = 1.0,
+    spacing_debuff  = 2.00,
+    width_debuff    = 200,
+    use_bars_debuff = true,
+    color_debuff    = { r = 1, g = 0.2, b = 0.2 },
     
-    positions = {} 
+    -- POSITIONS (Consolidated Table)
+    positions = {
+        static = { point = "CENTER", x = 0, y = 150 },
+        short  = { point = "CENTER", x = 0, y = 100 },
+        long   = { point = "CENTER", x = 0, y = 50 },
+        debuff = { point = "CENTER", x = 0, y = -50 },
+    }
 }
 
 M.db = {}
 M.frames = {}
 
--- ============================================================================
--- UTILITY FUNCTIONS (Time Formatting & Blizzard UI Toggles)
--- ============================================================================
+-- UTILITY FUNCTIONS
 local function format_time(s)
     if s >= 3600 then return format("%dh", floor(s/3600)) end
     if s >= 60 then return format("%dm", floor(s/60)) end
@@ -51,9 +87,7 @@ local function toggle_blizz_debuffs(hide)
     if hide then DebuffFrame:Hide() DebuffFrame:UnregisterAllEvents() else DebuffFrame:Show() DebuffFrame:RegisterEvent("UNIT_AURA") end
 end
 
--- ============================================================================
--- GUI COMPONENT BUILDERS (Sliders, etc.)
--- ============================================================================
+-- GUI COMPONENT BUILDERS
 local function CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db_key, callback)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
     slider:SetMinMaxValues(minV, maxV)
@@ -98,7 +132,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     self:SetScale(db[scale_key] or 1.0)
     self:SetWidth(frame_width)
 
-    -- Reset current display
     for i = 1, #self.icons do
         local obj = self.icons[i]
         obj:Hide()
@@ -113,11 +146,9 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 
     local icon_footprint = 32 + spacing
     local icons_per_row = math_max(1, floor((frame_width - 12 + spacing) / icon_footprint))
-
     local display_index = 1
     local index = 1
     
-    -- Main Scan Loop
     while true do
         local aura_data = GetAuraData("player", index, filter)
         if not aura_data then break end
@@ -125,7 +156,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
         local duration = aura_data.duration or 0
         local belongs_here = false
         
-        -- Filter logic
         if filter == "HARMFUL" then 
             belongs_here = true 
         else
@@ -137,8 +167,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 
         if belongs_here then
             local obj = self.icons[display_index]
-
-            -- Initial frame creation (Lazy loading)
             if not obj then
                 obj = CreateFrame("Frame", nil, self)
                 obj.texture = obj:CreateTexture(nil, "ARTWORK")
@@ -154,7 +182,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
                 obj.time_text:SetShadowOffset(1, -1)
                 obj.time_text:SetShadowColor(0, 0, 0, 1)
 
-                -- Tooltip scripts
                 obj:EnableMouse(true)
                 obj:SetScript("OnEnter", function(s)
                     if s.aura_index then
@@ -171,7 +198,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
             obj:ClearAllPoints()
             obj.texture:ClearAllPoints()
             
-            -- Handle Layout Styles (Bar vs Icon)
             if use_bars then
                 obj:SetSize(frame_width - 12, 20)
                 obj:SetPoint("TOPLEFT", self, "TOPLEFT", 6, -((display_index - 1) * (20 + spacing) + 6))
@@ -203,7 +229,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
             obj.texture:SetTexture(aura_data.icon)
             obj.time_text:Show()
 
-            -- Ticker Logic for Countdown
             if duration > 0 and aura_data.expirationTime then
                 local function update()
                     local remain = aura_data.expirationTime - GetTime()
@@ -224,7 +249,6 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
         index = index + 1
     end
 
-    -- Final Frame Sizing & Background visibility
     local active_count = display_index - 1
     if active_count > 0 or is_moving then
         self:Show()
@@ -246,14 +270,20 @@ end
 -- AURA CONTAINER GENERATOR (Backdrop, Move Handles, Events)
 -- ============================================================================
 function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, spacing_key, display_name, is_debuff)
-    local category = show_key:sub(6)
+    local category = show_key:sub(6) -- e.g. "static", "short"
     local frame = CreateFrame("Frame", "LsTweaksAuraFrame_"..show_key, UIParent, "BackdropTemplate")    
     frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 }})
     frame:SetMovable(true) frame:SetResizable(true) frame:SetClampedToScreen(true)
 
-    local pos = M.db.positions[show_key]
-    if pos then frame:SetPoint(pos.point, UIParent, pos.rel_point, pos.x, pos.y)
-    else frame:SetPoint("CENTER", UIParent, "CENTER", 0, is_debuff and -100 or 100) end
+    -- LOAD POSITION FROM CONSOLIDATED DB
+    local pos = M.db.positions and M.db.positions[category]
+    if pos then
+        local point = pos.point or "CENTER"
+        frame:ClearAllPoints()
+        frame:SetPoint(point, UIParent, point, pos.x or 0, pos.y or 0)
+    else
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, is_debuff and -100 or 100)
+    end
     
     local function CreateTitleBar(parent, is_bottom)
         local tb = CreateFrame("Frame", nil, parent, "BackdropTemplate")
@@ -267,7 +297,12 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         text:SetText(display_name)
         tb:EnableMouse(true) tb:RegisterForDrag("LeftButton")
         tb:SetScript("OnDragStart", function() parent:StartMoving() end)
-        tb:SetScript("OnDragStop", function() parent:StopMovingOrSizing() local p, _, rp, x, y = parent:GetPoint() M.db.positions[show_key] = { point = p, rel_point = rp, x = x, y = y } end)
+        tb:SetScript("OnDragStop", function() 
+            parent:StopMovingOrSizing() 
+            local p, _, _, x, y = parent:GetPoint() 
+            -- Save back to consolidated table
+            M.db.positions[category] = { point = p, x = x, y = y } 
+        end)
         return tb
     end
     
@@ -305,7 +340,6 @@ function M.build_settings(parent)
         { name = "Debuffs", show_key = "show_debuff", move_key = "move_debuff", timer_key = "timer_debuff", bg_key = "bg_debuff", scale_key = "scale_debuff", spacing_key = "spacing_debuff", is_debuff = true }
     }
 
-    -- Build Tabs and Tab Panels
     for i, data in ipairs(tab_data) do
         local tab = CreateFrame("Button", addon_name.."Tab"..i, parent, "PanelTabButtonTemplate")
         tab:SetText(data.name)
@@ -320,8 +354,6 @@ function M.build_settings(parent)
         p:Hide()
 
         if data.is_general then
-
-            -- General Tab Controls
             local b_buff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             b_buff:SetPoint("TOPLEFT", 16, -16)
             b_buff.Text:SetText("Disable Blizzard Buff Frame")
@@ -338,12 +370,8 @@ function M.build_settings(parent)
                 for k,v in pairs(M.frames) do M.update_auras(v, k, "move_"..k:sub(6), "timer_"..k:sub(6), "bg_"..k:sub(6), "scale_"..k:sub(6), "spacing_"..k:sub(6), k=="show_debuff" and "HARMFUL" or "HELPFUL") end
             end):SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 20, -40)
 
-            -- Global Reset
             addon.CreateGlobalReset(p, b_debuff, M.db, defaults)
-
         else
-
-            -- Specific Aura Tab Controls
             local cat = data.show_key:sub(6)
             local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
             local function update() M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter) end
@@ -372,7 +400,6 @@ function M.build_settings(parent)
             bg_cb:SetChecked(M.db[data.bg_key])
             bg_cb:SetScript("OnClick", function(self) M.db[data.bg_key] = self:GetChecked() update() end)
 
-            -- Color Swatch
             local color_btn = CreateFrame("Button", nil, p, "BackdropTemplate")
             color_btn:SetSize(22, 22)
             color_btn:SetPoint("LEFT", bg_cb, "RIGHT", 140, 0)
@@ -394,35 +421,43 @@ function M.build_settings(parent)
             c_text:SetPoint("LEFT", color_btn, "RIGHT", 5, 0)
             c_text:SetText("Bar Color")
 
-            -- color reset button
             local color_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
             color_reset:SetSize(80, 20)
             color_reset:SetPoint("TOPLEFT", color_btn, "BOTTOMLEFT", 0, -5)
             color_reset:SetText("Reset Color")
             color_reset:SetScript("OnClick", function()
-                local default_color = defaults["color_"..cat]
-                if default_color then
-                    M.db["color_"..cat] = {r = default_color.r, g = default_color.g, b = default_color.b}
-                    color_btn:SetBackdropColor(default_color.r, default_color.g, default_color.b)
-                    update()
-                end
+                local dc = defaults["color_"..cat]
+                M.db["color_"..cat] = {r = dc.r, g = dc.g, b = dc.b}
+                color_btn:SetBackdropColor(dc.r, dc.g, dc.b)
+                update()
             end)
 
-            -- sliders
             CreateSliderWithBox(addon_name..cat.."Scale", p, "Scale", 0.5, 2.5, 0.01, data.scale_key, update):SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", 20, -35)
             CreateSliderWithBox(addon_name..cat.."Spacing", p, "Spacing", 0, 40, 0.1, data.spacing_key, update):SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", 20, -85)
 
+            -- LOCAL RESET
             local reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
             reset:SetSize(120, 22)
             reset:SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", -10, -140)
             reset:SetText("Reset Position")
             reset:SetScript("OnClick", function()
-
-                M.db.positions[data.show_key] = nil
+                -- Reference the factory default position for this category
+                local dPos = defaults.positions[cat]
+                
+                -- Sync the active database values with the defaults
+                M.db.positions[cat].point = dPos.point
+                M.db.positions[cat].x = dPos.x
+                M.db.positions[cat].y = dPos.y
+                
+                -- Update the frame position in the UI immediately
                 local f = M.frames[data.show_key]
-                f:ClearAllPoints()
-                f:SetPoint("CENTER", UIParent, "CENTER", 0, data.is_debuff and -100 or 100)
+                if f then
+                    f:ClearAllPoints()
+                    f:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+                    print("|cff00ff00LsTweaks:|r Reset " .. cat .. " frame position.")
+                end
             end)
+
         end
 
         tabs[i], panels[i] = tab, p
@@ -436,29 +471,51 @@ function M.build_settings(parent)
     PanelTemplates_UpdateTabs(parent)
 end
 
--- ============================================================================
 -- INITIALIZATION & ADDON LOADING
--- ============================================================================
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, name)
     if name == addon_name then
-        -- Load Database
+        -- Initialize the global database if it does not exist
         if not Ls_Tweeks_DB then Ls_Tweeks_DB = {} end
-        for k, v in pairs(defaults) do if Ls_Tweeks_DB[k] == nil then Ls_Tweeks_DB[k] = v end end
+        
+        -- Apply factory defaults to any missing entries
+        -- This uses a deep-copy approach for nested tables
+        for k, v in pairs(defaults) do 
+            if Ls_Tweeks_DB[k] == nil then 
+                if type(v) == "table" then
+                    Ls_Tweeks_DB[k] = {}
+                    for subK, subV in pairs(v) do
+                        if type(subV) == "table" then
+                            Ls_Tweeks_DB[k][subK] = {}
+                            for innerK, innerV in pairs(subV) do
+                                Ls_Tweeks_DB[k][subK][innerK] = innerV
+                            end
+                        else
+                            Ls_Tweeks_DB[k][subK] = subV
+                        end
+                    end
+                else
+                    Ls_Tweeks_DB[k] = v 
+                end
+            end 
+        end
+        
+        -- Reference the local database to the global saved variable
         M.db = Ls_Tweeks_DB
         
-        -- Create the 4 Main Containers
+        -- Construct the main aura containers
+        -- Each call sets up the frame, anchors, and event scripts
         M.create_aura_frame("show_static", "move_static", "timer_static", "bg_static", "scale_static", "spacing_static", "Static", false)
         M.create_aura_frame("show_short", "move_short", "timer_short", "bg_short", "scale_short", "spacing_short", "Short", false)
         M.create_aura_frame("show_long", "move_long", "timer_long", "bg_long", "scale_long", "spacing_long", "Long", false)
         M.create_aura_frame("show_debuff", "move_debuff", "timer_debuff", "bg_debuff", "scale_debuff", "spacing_debuff", "Debuffs", true)
         
-        -- Apply Blizzard UI settings
+        -- Sync the Blizzard frame visibility with the saved settings
         toggle_blizz_buffs(M.db.disable_blizz_buffs)
         toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
     end
 end)
 
--- Register with the Main Addon Settings Panel
+-- Connect to the main addon settings panel
 addon.register_category("Buffs & Debuffs", function(parent) M.build_settings(parent) end)

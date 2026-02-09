@@ -3,20 +3,20 @@ local addon_name, addon = ...
 function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     -------- CONFIGURATION VARIABLES --------
-    local DIM_ALPHA = 0.5    -- Faded transparency when the button is locked
-    local READY_ALPHA = 0.6  -- Full transparency when 'arm' is typed
+    local DIM_ALPHA     = 0.5   -- Faded transparency when the button is locked
+    local READY_ALPHA   = 0.6   -- Full transparency when 'arm' is typed
 
     -- PULSE Params
-    local PULSE_MIN = 0.0    -- Minimum brightness during the pulse cycle
-    local PULSE_MAX = 1.1    -- Maximum brightness during the pulse cycle
-    local PULSE_SPEED = 0.75 -- Duration in seconds for one pulse cycle (lower is faster)
+    local PULSE_MIN     = 0.0   -- Minimum brightness during the pulse cycle
+    local PULSE_MAX     = 1.1   -- Maximum brightness during the pulse cycle
+    local PULSE_SPEED   = 0.75  -- Duration in seconds for one pulse cycle
 
     -- MASK SETTINGS
-    local MASK_INSET = 13  -- Increase to make circular "window" smaller
+    local MASK_INSET    = 13    -- Circular window size adjustment
 
     -- GLOW SIZE PARAMETERS
-    local GLOW_SIZE = 60 
-    local BEZEL_SPILL = 7    
+    local GLOW_SIZE     = 60
+    local BEZEL_SPILL   = 7
     -----------------------------------------
 
     -- CONTAINER
@@ -27,17 +27,17 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     -- BACKDROP
     container:SetBackdrop({
-        bgFile = "Interface\\FrameGeneral\\UI-Background-Rock", -- Grainy stone/metal texture
+        bgFile   = "Interface\\FrameGeneral\\UI-Background-Rock",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, 
+        tile     = true,
         tileSize = 256,
         edgeSize = 30,
-        insets = { left = 5, right = 5, top = 5, bottom = 5 }
+        insets   = { left = 5, right = 5, top = 5, bottom = 5 }
     })
-    container:SetBackdropColor(0.65, 0.6, 0.75, 1.0 ) 
+    container:SetBackdropColor(0.65, 0.6, 0.75, 1.0)
     container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6)
 
-    -- BOLTED PANEL DETAIL (Rivets)
+    -- BOLTED PANEL DETAIL
     local function CreateScrew(point, x, y)
         local s = container:CreateTexture(nil, "OVERLAY", nil, 6)
         s:SetSize(10, 10)
@@ -58,15 +58,15 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
         shine:AddMaskTexture(m)
     end
 
-    CreateScrew("TOPLEFT", 14, -14)
-    CreateScrew("TOPRIGHT", -14, -14)
-    CreateScrew("BOTTOMLEFT", 14, 14)
+    CreateScrew("TOPLEFT",     14, -14)
+    CreateScrew("TOPRIGHT",   -14, -14)
+    CreateScrew("BOTTOMLEFT",  14,  14)
     CreateScrew("BOTTOMRIGHT", -14, 14)
 
     -- TITLE
     local title = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", container, "TOP", 0, -15)
-    title:SetText("Module Reset")
+    title:SetText("Hal's Module Reset")
     title:SetTextColor(1, 0.82, 0)
 
     -- INSTRUCTION LABEL
@@ -88,6 +88,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     local btn = CreateFrame("Button", nil, container)
     btn:SetSize(64, 64)
     btn:SetPoint("TOP", container, "TOP", 0, -40)
+    btn:Disable()
 
     -- STATIC BUTTON TEXTURE
     local bgTex = btn:CreateTexture(nil, "BACKGROUND")
@@ -98,7 +99,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     -- PULSING OVERLAY
     local pulseTex = btn:CreateTexture(nil, "ARTWORK")
     pulseTex:SetSize(GLOW_SIZE + BEZEL_SPILL, GLOW_SIZE + BEZEL_SPILL)
-    pulseTex:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    pulseTex:SetPoint("CENTER")
     pulseTex:SetTexture("Interface\\Icons\\inv_misc_enggizmos_27")
     pulseTex:SetBlendMode("ADD")
     pulseTex:SetAlpha(0)
@@ -106,7 +107,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     -- CIRCULAR MASK
     local mask = btn:CreateMaskTexture()
     mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    mask:SetPoint("TOPLEFT", pulseTex, "TOPLEFT", MASK_INSET, -MASK_INSET)
+    mask:SetPoint("TOPLEFT",     pulseTex, "TOPLEFT",     MASK_INSET, -MASK_INSET)
     mask:SetPoint("BOTTOMRIGHT", pulseTex, "BOTTOMRIGHT", -MASK_INSET, MASK_INSET)
     pulseTex:AddMaskTexture(mask)
 
@@ -119,8 +120,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     -- PUSHED TEXTURE
     btn:SetPushedTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-    local pushed = btn:GetPushedTexture()
-    pushed:SetBlendMode("MOD")
+    btn:GetPushedTexture():SetBlendMode("MOD")
 
     -- PULSE ANIMATION
     local ag = pulseTex:CreateAnimationGroup()
@@ -131,7 +131,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     animAlpha:SetSmoothing("IN_OUT")
     ag:SetLooping("BOUNCE")
 
-    -- --- SECURITY LOGIC: AUTO-CLEAR ON HIDE ---
+    -- SECURITY LOGIC: AUTO-CLEAR
     container:SetScript("OnHide", function()
         eb:SetText("")
         eb:ClearFocus()
@@ -146,31 +146,22 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
 
     btn:SetScript("OnLeave", function(self)
         ag:Stop()
-        if self:IsEnabled() then 
-            pulseTex:SetAlpha(READY_ALPHA) 
-        else 
-            pulseTex:SetAlpha(0) 
-        end
+        pulseTex:SetAlpha(self:IsEnabled() and READY_ALPHA or 0)
     end)
-
-    btn:Disable()
 
     -- TERMINAL INPUT LOGIC
     eb:SetScript("OnTextChanged", function(self)
-        local rawText = self:GetText()
-        local upperText = rawText:upper()
+        local raw = self:GetText()
+        local upper = raw:upper()
+        if raw ~= upper then self:SetText(upper) end
 
-        if rawText ~= upperText then
-            self:SetText(upperText)
-        end
-
-        if upperText == "ARM" then
+        if upper == "ARM" then
             btn:Enable()
             bgTex:SetAlpha(READY_ALPHA)
             pulseTex:SetAlpha(READY_ALPHA)
             self:ClearFocus()
             self:SetFontObject("NumberFont_Shadow_Med")
-            self:SetTextColor(0, 1, 0) 
+            self:SetTextColor(0, 1, 0)
         else
             btn:Disable()
             ag:Stop()
@@ -184,11 +175,44 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     -- RESET EXECUTION
     btn:SetScript("OnClick", function()
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+
+        -- Wipe and restore database from defaults
         table.wipe(db)
-        if type(defaults) == "table" then
-            for k, v in pairs(defaults) do db[k] = v end
+        for k, v in pairs(defaults) do
+            if type(v) == "table" then
+                db[k] = {}
+                for subK, subV in pairs(v) do
+                    if type(subV) == "table" then
+                        db[k][subK] = {}
+                        for innerK, innerV in pairs(subV) do
+                            db[k][subK][innerK] = innerV
+                        end
+                    else
+                        db[k][subK] = subV
+                    end
+                end
+            else
+                db[k] = v
+            end
         end
-        if db.positions then db.positions = {} end
-        ReloadUI()
+
+        -- Physically reset the frames in real-time
+        local aura_module = addon.aura_frames
+        if aura_module and aura_module.frames then
+            for key, frame in pairs(aura_module.frames) do
+                local category = key:sub(6)
+                local dPos = defaults.positions[category]
+                if dPos and frame then
+                    frame:ClearAllPoints()
+                    frame:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+                    
+                    -- Refresh visuals like scale and background
+                    aura_module.update_auras(frame, key, "move_"..category, "timer_"..category, "bg_"..category, "scale_"..category, "spacing_"..category, category == "debuff" and "HARMFUL" or "HELPFUL")
+                end
+            end
+        end
+
+        print("|cff00ff00LsTweaks:|r Module reset applied live.")
     end)
+    
 end
