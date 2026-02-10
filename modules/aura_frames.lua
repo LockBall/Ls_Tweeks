@@ -17,7 +17,7 @@ local defaults = {
     
     -- STATIC
     show_static     = false,
-    move_static     = false,
+    move_static     = true,
     timer_static    = false,
     bg_static       = false,
     scale_static    = 1.0,
@@ -28,7 +28,7 @@ local defaults = {
 
     -- SHORT
     show_short      = false,
-    move_short      = false,
+    move_short      = true,
     timer_short     = true,
     bg_short        = false,
     scale_short     = 1.0,
@@ -39,7 +39,7 @@ local defaults = {
 
     -- LONG
     show_long       = false,
-    move_long       = false,
+    move_long       = true,
     timer_long      = true,
     bg_long         = false,
     scale_long      = 1.0,
@@ -50,7 +50,7 @@ local defaults = {
 
     -- DEBUFFS
     show_debuff     = false,
-    move_debuff     = false,
+    move_debuff     = true,
     timer_debuff    = true,
     bg_debuff       = false,
     scale_debuff    = 1.0,
@@ -140,7 +140,19 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 
     local is_moving = db[move_key]
     if not db[show_key] then 
-        if is_moving then self:Show() else self:Hide() end
+        if is_moving then 
+            self:Show()
+            -- Set up move mode styling even with no auras showing
+            local bg_alpha = db[bg_key] and 0.8 or 0
+            self:SetBackdropColor(0, 0, 0, bg_alpha)
+            self:SetBackdropBorderColor(1, 1, 1, bg_alpha > 0 and 1 or 0)
+            self:SetHeight(44)
+            self.title_bar:Show()
+            self.bottom_title_bar:Show()
+            self.resizer:Show()
+        else 
+            self:Hide() 
+        end
         return 
     end
 
@@ -153,15 +165,20 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
         local aura_data = GetAuraData("player", index, filter)
         if not aura_data then break end
 
-        local duration = aura_data.duration or 0
+        local duration = tonumber(aura_data.duration) or 0 -- Use 0 as fallback if duration is nil or 'secret value'
         local belongs_here = false
         
         if filter == "HARMFUL" then 
             belongs_here = true 
         else
-            if show_key == "show_static" then belongs_here = (duration == 0)
-            elseif show_key == "show_short" then belongs_here = (duration > 0 and duration <= short_threshold)
-            elseif show_key == "show_long" then belongs_here = (duration > short_threshold)
+            if show_key == "show_static" then 
+                belongs_here = (duration == 0)
+            elseif show_key == "show_short" then 
+                -- Safeguard comparison against nil/secret values
+                belongs_here = (duration > 0 and duration <= short_threshold)
+            elseif show_key == "show_long" then 
+                -- Safeguard comparison against nil/secret values
+                belongs_here = (duration > short_threshold)
             end
         end
 
@@ -210,7 +227,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
                 obj.bar:SetHeight(18)
                 obj.name_text:SetParent(obj.bar)
                 obj.name_text:SetPoint("LEFT", obj.bar, "LEFT", 4, 0)
-                obj.name_text:SetText(aura_data.name)
+                obj.name_text:SetText(aura_data.name or "Unknown")
                 obj.name_text:Show()
                 obj.time_text:SetParent(obj.bar)
                 obj.time_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
@@ -226,7 +243,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
                 obj.time_text:SetPoint("TOP", obj, "BOTTOM", 0, -2)
             end
 
-            obj.texture:SetTexture(aura_data.icon)
+            obj.texture:SetTexture(aura_data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
             obj.time_text:Show()
 
             if duration > 0 and aura_data.expirationTime then
@@ -381,24 +398,29 @@ function M.build_settings(parent)
             move_cb.Text:SetText("Move Mode")
             move_cb:SetChecked(M.db[data.move_key])
             move_cb:SetScript("OnClick", function(self) M.db[data.move_key] = self:GetChecked() update() end)
+            if not M.controls then M.controls = {} end
+            M.controls[data.move_key] = move_cb
 
             local bars_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             bars_cb:SetPoint("LEFT", move_cb, "RIGHT", 140, 0)
             bars_cb.Text:SetText("Display as Bars")
             bars_cb:SetChecked(M.db["use_bars_"..cat])
             bars_cb:SetScript("OnClick", function(self) M.db["use_bars_"..cat] = self:GetChecked() update() end)
+            M.controls["use_bars_"..cat] = bars_cb
 
             local enable_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             enable_cb:SetPoint("TOPLEFT", move_cb, "BOTTOMLEFT", 0, -4)
             enable_cb.Text:SetText("Enable Frame")
             enable_cb:SetChecked(M.db[data.show_key])
             enable_cb:SetScript("OnClick", function(self) M.db[data.show_key] = self:GetChecked() update() end)
+            M.controls[data.show_key] = enable_cb
 
             local bg_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             bg_cb:SetPoint("LEFT", enable_cb, "RIGHT", 140, 0)
             bg_cb.Text:SetText("Show Background")
             bg_cb:SetChecked(M.db[data.bg_key])
             bg_cb:SetScript("OnClick", function(self) M.db[data.bg_key] = self:GetChecked() update() end)
+            M.controls[data.bg_key] = bg_cb
 
             local color_btn = CreateFrame("Button", nil, p, "BackdropTemplate")
             color_btn:SetSize(22, 22)
@@ -441,20 +463,29 @@ function M.build_settings(parent)
             reset:SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", -10, -140)
             reset:SetText("Reset Position")
             reset:SetScript("OnClick", function()
-                -- Reference the factory default position for this category
+                -- Reference the factory default position and move state
                 local dPos = defaults.positions[cat]
+                local dMove = defaults[data.move_key]
                 
                 -- Sync the active database values with the defaults
                 M.db.positions[cat].point = dPos.point
                 M.db.positions[cat].x = dPos.x
                 M.db.positions[cat].y = dPos.y
+                M.db[data.move_key] = dMove
                 
-                -- Update the frame position in the UI immediately
+                -- Update the UI checkbox to match the new move state
+                move_cb:SetChecked(dMove)
+                
+                -- Update the frame position and visuals in real-time
                 local f = M.frames[data.show_key]
                 if f then
                     f:ClearAllPoints()
                     f:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
-                    print("|cff00ff00LsTweaks:|r Reset " .. cat .. " frame position.")
+                    
+                    -- Refresh the aura frame to reflect the default settings
+                    M.update_auras(f, data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter)
+                    
+                    print("|cff00ff00LsTweaks:|r Reset " .. cat .. " to factory defaults.")
                 end
             end)
 
@@ -506,10 +537,10 @@ loader:SetScript("OnEvent", function(self, event, name)
         
         -- Construct the main aura containers
         -- Each call sets up the frame, anchors, and event scripts
-        M.create_aura_frame("show_static", "move_static", "timer_static", "bg_static", "scale_static", "spacing_static", "Static", false)
-        M.create_aura_frame("show_short", "move_short", "timer_short", "bg_short", "scale_short", "spacing_short", "Short", false)
-        M.create_aura_frame("show_long", "move_long", "timer_long", "bg_long", "scale_long", "spacing_long", "Long", false)
-        M.create_aura_frame("show_debuff", "move_debuff", "timer_debuff", "bg_debuff", "scale_debuff", "spacing_debuff", "Debuffs", true)
+        M.create_aura_frame("show_static",  "move_static",  "timer_static", "bg_static",    "scale_static", "spacing_static",   "Static",   false)
+        M.create_aura_frame("show_short",   "move_short",   "timer_short",  "bg_short",     "scale_short",  "spacing_short",    "Short",    false)
+        M.create_aura_frame("show_long",    "move_long",    "timer_long",   "bg_long",      "scale_long",   "spacing_long",     "Long",     false)
+        M.create_aura_frame("show_debuff",  "move_debuff",  "timer_debuff", "bg_debuff",    "scale_debuff", "spacing_debuff",   "Debuffs",  true)
         
         -- Sync the Blizzard frame visibility with the saved settings
         toggle_blizz_buffs(M.db.disable_blizz_buffs)

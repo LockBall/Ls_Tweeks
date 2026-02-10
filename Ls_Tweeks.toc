@@ -20,7 +20,6 @@ core\main_frame.lua
 core\minimap_button.lua
 
 # --- Shared Functions (Shared Utility Library) ---
-# These must load before modules so the functions are available
 functions\reset.lua
 
 # --- Modules ---

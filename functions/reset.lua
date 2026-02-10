@@ -172,7 +172,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
         end
     end)
 
-    -- RESET EXECUTION
+-- RESET EXECUTION
     btn:SetScript("OnClick", function()
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 
@@ -196,23 +196,74 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
             end
         end
 
-        -- Physically reset the frames in real-time
-        local aura_module = addon.aura_frames
-        if aura_module and aura_module.frames then
-            for key, frame in pairs(aura_module.frames) do
-                local category = key:sub(6)
-                local dPos = defaults.positions[category]
-                if dPos and frame then
-                    frame:ClearAllPoints()
-                    frame:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+        -- Universal Frame & UI Sync
+        -- This works for any module that stores frames in addon[module].frames
+        for moduleName, module in pairs(addon) do
+            if type(module) == "table" and module.frames then
+                -- First, update all stored controls to reflect new database values
+                if module.controls then
+                    for key, control in pairs(module.controls) do
+                        if control.SetChecked then  -- It's a checkbox
+                            if db[key] ~= nil then
+                                control:SetChecked(db[key])
+                            end
+                        end
+                    end
+                end
+                
+                for show_key, frame in pairs(module.frames) do
                     
-                    -- Refresh visuals like scale and background
-                    aura_module.update_auras(frame, key, "move_"..category, "timer_"..category, "bg_"..category, "scale_"..category, "spacing_"..category, category == "debuff" and "HARMFUL" or "HELPFUL")
+                    -- Extract the suffix (e.g., "static", "debuff", or future module keys)
+                    local suffix = show_key:gsub("show_", "")
+                    local move_key = "move_" .. suffix
+                    
+                    -- Update the Physical Frame
+                    if frame then
+                        -- Pull coordinates from the reset-synced database
+                        local dPos = db.positions and db.positions[suffix]
+                        if dPos then
+                            frame:ClearAllPoints()
+                            frame:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+                        end
+
+                        -- Trigger the module's specific update function if it exists
+                        -- update_auras handles ALL visibility logic based on show_key and move_key
+                        if module.update_auras then
+                            module.update_auras(
+                                frame, 
+                                show_key, 
+                                move_key, 
+                                "timer_" .. suffix, 
+                                "bg_" .. suffix, 
+                                "scale_" .. suffix, 
+                                "spacing_" .. suffix, 
+                                suffix == "debuff" and "HARMFUL" or "HELPFUL"
+                            )
+                        end
+                    end
+                end
+                
+                -- Invalidate cached UI tabs for this module so they get rebuilt on next view
+                -- This ensures all checkboxes reflect the reset database values
+                if addon.main_frame and addon.main_frame.tabs then
+                    if module.build_settings then
+                        -- Find and invalidate this module's tab(s) by looking for the builder function
+                        for tabName, tabFrame in pairs(addon.main_frame.tabs) do
+                            if tabName ~= "About" then
+                                -- Remove cached tabs to force rebuild with fresh UI elements
+                                addon.main_frame.tabs[tabName] = nil
+                            end
+                        end
+                    end
+                end
+                
+                -- Call a refresh callback if the module provides one
+                if module.on_reset_complete then
+                    module.on_reset_complete()
                 end
             end
         end
 
-        print("|cff00ff00LsTweaks:|r Module reset applied live.")
-    end)
-    
+        print("|cff00ff00LsTweaks:|r Global reset complete and synchronized.")
+    end) 
 end
