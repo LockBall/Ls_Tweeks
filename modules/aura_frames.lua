@@ -164,7 +164,22 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
         local aura_data = GetAuraData("player", index, filter)
         if not aura_data then break end
 
-        local duration = tonumber(aura_data.duration) or 0 -- Use 0 as fallback if duration is nil or 'secret value'
+        -- Calculate duration safely from expirationTime to avoid taint issues
+        -- expirationTime is tainted during combat, so wrap comparison in pcall
+        local expirationTime = aura_data.expirationTime
+        local duration = 0
+        if expirationTime then
+            local ok, result = pcall(function() 
+                if expirationTime > 0 then
+                    return expirationTime - GetTime()
+                else
+                    return 0
+                end
+            end)
+            if ok and result > 0 then
+                duration = result
+            end
+        end
         local belongs_here = false
         
         if filter == "HARMFUL" then 
@@ -173,10 +188,10 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
             if show_key == "show_static" then 
                 belongs_here = (duration == 0)
             elseif show_key == "show_short" then 
-                -- Safeguard comparison against nil/secret values
+                -- Safe comparison using calculated duration
                 belongs_here = (duration > 0 and duration <= short_threshold)
             elseif show_key == "show_long" then 
-                -- Safeguard comparison against nil/secret values
+                -- Safe comparison using calculated duration
                 belongs_here = (duration > short_threshold)
             end
         end
@@ -245,10 +260,16 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
             obj.texture:SetTexture(aura_data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
             obj.time_text:Show()
 
-            if duration > 0 and aura_data.expirationTime then
+            if duration > 0 then
+                local storedExpiration = aura_data.expirationTime  -- Store value once
                 local function update()
-                    local remain = aura_data.expirationTime - GetTime()
-                    if remain < 0 then remain = 0 end
+                    local remain = 0
+                    if storedExpiration then
+                        local ok, result = pcall(function() return storedExpiration - GetTime() end)
+                        if ok and result > 0 then
+                            remain = result
+                        end
+                    end
                     obj.time_text:SetText(format_time(remain))
                     if use_bars then obj.bar:SetMinMaxValues(0, duration) obj.bar:SetValue(remain) end
                 end
