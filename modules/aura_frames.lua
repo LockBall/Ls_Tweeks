@@ -142,10 +142,9 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     if not db[show_key] then 
         if is_moving then 
             self:Show()
-            -- Set up move mode styling even with no auras showing
-            local bg_alpha = db[bg_key] and 0.8 or 0
-            self:SetBackdropColor(0, 0, 0, bg_alpha)
-            self:SetBackdropBorderColor(1, 1, 1, bg_alpha > 0 and 1 or 0)
+            -- Set up move mode styling: always show background in move mode for visibility
+            self:SetBackdropColor(0, 0, 0, 0.8)
+            self:SetBackdropBorderColor(1, 1, 1, 1)
             self:SetHeight(44)
             self.title_bar:Show()
             self.bottom_title_bar:Show()
@@ -267,11 +266,18 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     end
 
     local active_count = display_index - 1
-    if active_count > 0 or is_moving then
+    local should_show = active_count > 0 or is_moving or db[show_key]
+    if should_show then
         self:Show()
-        local height = use_bars and (active_count * (20 + spacing) + 12) or (math_ceil(active_count / icons_per_row) * (32 + spacing + 12) + 12)
+        local height
+        if active_count > 0 then
+            height = use_bars and (active_count * (20 + spacing) + 12) or (math_ceil(active_count / icons_per_row) * (32 + spacing + 12) + 12)
+        else
+            -- Minimal visible height when the frame is enabled but has no auras
+            height = 44
+        end
         self:SetHeight(math_max(height, is_moving and 44 or 0))
-        
+
         local bg_alpha = (db[bg_key] or is_moving) and 0.8 or 0
         self:SetBackdropColor(0, 0, 0, bg_alpha)
         self:SetBackdropBorderColor(1, 1, 1, bg_alpha > 0 and 1 or 0)
@@ -382,6 +388,16 @@ function M.build_settings(parent)
             b_debuff.Text:SetText("Disable Blizzard Debuff Frame")
             b_debuff:SetChecked(M.db.disable_blizz_debuffs)
             b_debuff:SetScript("OnClick", function(self) M.db.disable_blizz_debuffs = self:GetChecked() toggle_blizz_debuffs(M.db.disable_blizz_debuffs) end)
+
+            if not M.controls then M.controls = {} end
+            M.controls["disable_blizz_buffs"] = b_buff
+            M.controls["disable_blizz_debuffs"] = b_debuff
+
+            -- Ensure Blizzard frames are toggled after a global reset
+            M.on_reset_complete = function()
+                toggle_blizz_buffs(M.db.disable_blizz_buffs)
+                toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+            end
 
             CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", function() 
                 for k,v in pairs(M.frames) do M.update_auras(v, k, "move_"..k:sub(6), "timer_"..k:sub(6), "bg_"..k:sub(6), "scale_"..k:sub(6), "spacing_"..k:sub(6), k=="show_debuff" and "HARMFUL" or "HELPFUL") end

@@ -20,7 +20,7 @@ core\main_frame.lua
 core\minimap_button.lua
 
 # --- Shared Functions (Shared Utility Library) ---
-functions\reset.lua
+functions\module_reset.lua
 
 # --- Modules ---
 modules\combat_text.lua
