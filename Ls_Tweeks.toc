@@ -24,4 +24,8 @@ functions\module_reset.lua
 
 # --- Modules ---
 modules\combat_text.lua
-modules\aura_frames.lua
+
+modules\aura_frames\af_defaults.lua
+modules\aura_frames\af_logic.lua
+modules\aura_frames\af_gui.lua
+modules\aura_frames\af_main.lua

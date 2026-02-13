@@ -172,7 +172,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
         end
     end)
 
--- RESET EXECUTION
+    -- RESET EXECUTION
     btn:SetScript("OnClick", function()
         PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 
@@ -197,37 +197,32 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
         end
 
         -- Universal Frame & UI Sync
-        -- This works for any module that stores frames in addon[module].frames
         for moduleName, module in pairs(addon) do
             if type(module) == "table" and module.frames then
-                -- First, update all stored controls to reflect new database values
+                
+                -- Sync UI Controls (Checkboxes and Sliders)
                 if module.controls then
                     for key, control in pairs(module.controls) do
-                        if control.SetChecked then  -- It's a checkbox
-                            if db[key] ~= nil then
-                                control:SetChecked(db[key])
-                            end
+                        if control.SetChecked then
+                            if db[key] ~= nil then control:SetChecked(db[key]) end
+                        elseif control.SetValue then
+                            if db[key] ~= nil then control:SetValue(db[key]) end
                         end
                     end
                 end
                 
+                -- Update Physical Frames
                 for show_key, frame in pairs(module.frames) do
-                    
-                    -- Extract the suffix (e.g., "static", "debuff", or future module keys)
                     local suffix = show_key:gsub("show_", "")
                     local move_key = "move_" .. suffix
                     
-                    -- Update the Physical Frame
                     if frame then
-                        -- Pull coordinates from the reset-synced database
                         local dPos = db.positions and db.positions[suffix]
                         if dPos then
                             frame:ClearAllPoints()
                             frame:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
                         end
 
-                        -- Trigger the module's specific update function if it exists
-                        -- update_auras handles ALL visibility logic based on show_key and move_key
                         if module.update_auras then
                             module.update_auras(
                                 frame, 
@@ -243,21 +238,17 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
                     end
                 end
                 
-                -- Invalidate cached UI tabs for this module so they get rebuilt on next view
-                -- This ensures all checkboxes reflect the reset database values
-                if addon.main_frame and addon.main_frame.tabs then
-                    if module.build_settings then
-                        -- Find and invalidate this module's tab(s) by looking for the builder function
+                -- Invalidate cached UI tabs for rebuild
+                if (addon.af_gui and addon.af_gui.BuildSettings) or module.build_settings then
+                    if addon.main_frame and addon.main_frame.tabs then
                         for tabName, tabFrame in pairs(addon.main_frame.tabs) do
                             if tabName ~= "About" then
-                                -- Remove cached tabs to force rebuild with fresh UI elements
                                 addon.main_frame.tabs[tabName] = nil
                             end
                         end
                     end
                 end
                 
-                -- Call a refresh callback if the module provides one
                 if module.on_reset_complete then
                     module.on_reset_complete()
                 end

@@ -4,24 +4,27 @@ local addon_name, addon = ...
 local LDB = LibStub("LibDataBroker-1.1")
 local LDBIcon = LibStub("LibDBIcon-1.0")
 
----------------------------------------------------------
--- Create the LDB data object for the minimap button
----------------------------------------------------------
+-- ============================================================================
+-- LDB DATA OBJECT
+-- ============================================================================
 addon.data_object = LDB:NewDataObject("Ls_Tweeks_Minimap", {
     type = "launcher",
-    icon = "Interface\\AddOns\\Ls_Tweeks\\media\\icon_256", -- your icon
+    icon = "Interface\\AddOns\\Ls_Tweeks\\media\\icon_256", 
 
     OnClick = function(_, button)
         if button == "LeftButton" then
-            -- Toggle the main window
-            if addon.main_frame and addon.main_frame:IsShown() then
-                addon.main_frame:Hide()
-            else
-                if addon.main_frame then
+            if addon.main_frame then
+                if addon.main_frame:IsShown() then
+                    addon.main_frame:Hide()
+                else
                     addon.main_frame:Show()
                 end
+            else
+                if addon.init_main_frame then 
+                    addon.init_main_frame() 
+                    if addon.main_frame then addon.main_frame:Show() end
+                end
             end
-
         elseif button == "RightButton" then
             print("|cff00ff00Ls_Tweeks:|r Right-click menu not implemented yet.")
         end
@@ -34,9 +37,9 @@ addon.data_object = LDB:NewDataObject("Ls_Tweeks_Minimap", {
     end,
 })
 
----------------------------------------------------------
--- Minimap button toggle helper
----------------------------------------------------------
+-- ============================================================================
+-- HELPERS
+-- ============================================================================
 function addon.toggle_minimap_button(show)
     Ls_Tweeks_DB.minimap = Ls_Tweeks_DB.minimap or {}
     Ls_Tweeks_DB.minimap.hide = not show
@@ -48,10 +51,11 @@ function addon.toggle_minimap_button(show)
     end
 end
 
----------------------------------------------------------
--- Initializer (called from core/init.lua)
----------------------------------------------------------
+-- ============================================================================
+-- INITIALIZER
+-- ============================================================================
 function addon.init_minimap_button()
+    if not Ls_Tweeks_DB then Ls_Tweeks_DB = {} end
     Ls_Tweeks_DB.minimap = Ls_Tweeks_DB.minimap or {}
 
     -- Register with LibDBIcon
