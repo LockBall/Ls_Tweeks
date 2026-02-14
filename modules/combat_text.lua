@@ -1,9 +1,9 @@
 local addon_name, addon = ...
 
--- Initialize module table for reset-sync compatibility
+-- Initialize module table
 addon.combat_text = {
     controls = {},
-    frames = {} -- We don't have movable frames here, but keep it for logic consistency
+    frames = {} 
 }
 
 local M = addon.combat_text
@@ -13,52 +13,36 @@ local defaults = {
     combat_text_portrait_disabled = false,
 }
 
----------------------------------------------------------
 -- Internal helpers
----------------------------------------------------------
-local function hide_portrait_combat_text()
+local function toggle_portrait_text(disable)
+    -- Target the specific Blizzard HitIndicator
     local h = PlayerFrame
         and PlayerFrame.PlayerFrameContent
         and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
         and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HitIndicator
 
-    if h then
+    if not h then return end
+
+    if disable then
         h:Hide()
-        h.Show = function() end
-    end
-end
-
-local function show_portrait_combat_text()
-    local h = PlayerFrame
-        and PlayerFrame.PlayerFrameContent
-        and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
-        and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HitIndicator
-
-    if h then
-        h.Show = nil
-        h:Show()
-    end
-end
-
----------------------------------------------------------
--- Update function
----------------------------------------------------------
-function M.update_combat_text_portrait()
-    if Ls_Tweeks_DB.combat_text_portrait_disabled then
-        hide_portrait_combat_text()
+        -- Safely stop the frame from reacting to combat events
+        h:UnregisterAllEvents() 
     else
-        show_portrait_combat_text()
+        -- Re-enable the standard Blizzard behavior
+        h:RegisterEvent("UNIT_COMBAT")
     end
 end
 
--- Compatibility hook for the Global Reset button
-function M.on_reset_complete()
-    M.update_combat_text_portrait()
+-- Update function
+function M.update_combat_text_portrait()
+    if Ls_Tweeks_DB and Ls_Tweeks_DB.combat_text_portrait_disabled then
+        toggle_portrait_text(true)
+    else
+        toggle_portrait_text(false)
+    end
 end
 
----------------------------------------------------------
 -- Module initializer
----------------------------------------------------------
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, name)
@@ -83,10 +67,8 @@ loader:SetScript("OnEvent", function(self, event, name)
                     Ls_Tweeks_DB.combat_text_portrait_disabled = self:GetChecked()
                     M.update_combat_text_portrait()
                 end)
-
-                -- Register control so Reset Button can find it
-                M.controls["combat_text_portrait_disabled"] = cb
             end)
         end
+        self:UnregisterEvent("ADDON_LOADED")
     end
 end)

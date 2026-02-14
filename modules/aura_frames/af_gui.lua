@@ -38,10 +38,7 @@ function M.CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db_key
     return slider
 end
 
--- ============================================================================
 -- SETTINGS PANEL INTERFACE
--- ============================================================================
--- Renamed to M.BuildSettings to match the handshake in af_main.lua
 function M.BuildSettings(parent)
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 10, -10)
@@ -79,6 +76,7 @@ function M.BuildSettings(parent)
         p:Hide()
 
         if data.is_general then
+            -- Blizzard Buff Toggle
             local b_buff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             b_buff:SetPoint("TOPLEFT", 16, -16)
             b_buff.Text:SetText("Disable Blizzard Buff Frame")
@@ -88,6 +86,7 @@ function M.BuildSettings(parent)
                 M.toggle_blizz_buffs(M.db.disable_blizz_buffs) 
             end)
 
+            -- Blizzard Debuff Toggle
             local b_debuff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             b_debuff:SetPoint("TOPLEFT", b_buff, "BOTTOMLEFT", 0, -8)
             b_debuff.Text:SetText("Disable Blizzard Debuff Frame")
@@ -100,13 +99,14 @@ function M.BuildSettings(parent)
             M.controls["disable_blizz_buffs"] = b_buff
             M.controls["disable_blizz_debuffs"] = b_debuff
 
-            M.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", function() 
+            -- Threshold Slider
+            local threshold = M.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", function() 
                 for k,v in pairs(M.frames) do 
                     M.update_auras(v, k, "move_"..k:sub(7), "timer_"..k:sub(7), "bg_"..k:sub(7), "scale_"..k:sub(7), "spacing_"..k:sub(7), k=="show_debuff" and "HARMFUL" or "HELPFUL") 
                 end
-            end):SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 20, -40)
+            end)
+            threshold:SetPoint("TOPLEFT", b_debuff, "BOTTOMLEFT", 20, -40)
 
-            -- Updated to use the unified M.defaults
             addon.CreateGlobalReset(p, b_debuff, M.db, M.defaults)
         else
             local cat = data.show_key:sub(6)
@@ -115,6 +115,7 @@ function M.BuildSettings(parent)
                 M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter) 
             end
             
+            -- move mode checkbox
             local move_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
             move_cb:SetPoint("TOPLEFT", 16, -16)
             move_cb.Text:SetText("Move Mode")
@@ -122,65 +123,10 @@ function M.BuildSettings(parent)
             move_cb:SetScript("OnClick", function(self) M.db[data.move_key] = self:GetChecked() update() end)
             M.controls[data.move_key] = move_cb
 
-            local bars_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            bars_cb:SetPoint("LEFT", move_cb, "RIGHT", 140, 0)
-            bars_cb.Text:SetText("Display as Bars")
-            bars_cb:SetChecked(M.db["use_bars_"..cat])
-            bars_cb:SetScript("OnClick", function(self) M.db["use_bars_"..cat] = self:GetChecked() update() end)
-            M.controls["use_bars_"..cat] = bars_cb
-
-            local enable_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            enable_cb:SetPoint("TOPLEFT", move_cb, "BOTTOMLEFT", 0, -4)
-            enable_cb.Text:SetText("Enable Frame")
-            enable_cb:SetChecked(M.db[data.show_key])
-            enable_cb:SetScript("OnClick", function(self) M.db[data.show_key] = self:GetChecked() update() end)
-            M.controls[data.show_key] = enable_cb
-
-            local bg_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            bg_cb:SetPoint("LEFT", enable_cb, "RIGHT", 140, 0)
-            bg_cb.Text:SetText("Show Background")
-            bg_cb:SetChecked(M.db[data.bg_key])
-            bg_cb:SetScript("OnClick", function(self) M.db[data.bg_key] = self:GetChecked() update() end)
-            M.controls[data.bg_key] = bg_cb
-
-            local color_btn = CreateFrame("Button", nil, p, "BackdropTemplate")
-            color_btn:SetSize(22, 22)
-            color_btn:SetPoint("LEFT", bg_cb, "RIGHT", 140, 0)
-            color_btn:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameColorSwatch", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8})
-            local c = M.db["color_"..cat]
-            color_btn:SetBackdropColor(c.r, c.g, c.b)
-            color_btn:SetScript("OnClick", function()
-                ColorPickerFrame:SetupColorPickerAndShow({
-                    r = c.r, g = c.g, b = c.b,
-                    swatchFunc = function()
-                        local r, g, b = ColorPickerFrame:GetColorRGB()
-                        M.db["color_"..cat] = {r=r, g=g, b=b}
-                        color_btn:SetBackdropColor(r, g, b)
-                        update()
-                    end
-                })
-            end)
-            local c_text = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            c_text:SetPoint("LEFT", color_btn, "RIGHT", 5, 0)
-            c_text:SetText("Bar Color")
-
-            local color_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
-            color_reset:SetSize(80, 20)
-            color_reset:SetPoint("TOPLEFT", color_btn, "BOTTOMLEFT", 0, -5)
-            color_reset:SetText("Reset Color")
-            color_reset:SetScript("OnClick", function()
-                local dc = M.defaults["color_"..cat]
-                M.db["color_"..cat] = {r = dc.r, g = dc.g, b = dc.b}
-                color_btn:SetBackdropColor(dc.r, dc.g, dc.b)
-                update()
-            end)
-
-            M.CreateSliderWithBox(addon_name..cat.."Scale", p, "Scale", 0.5, 2.5, 0.01, data.scale_key, update):SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", 20, -35)
-            M.CreateSliderWithBox(addon_name..cat.."Spacing", p, "Spacing", 0, 40, 0.1, data.spacing_key, update):SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", 20, -85)
-
+            -- position reset local
             local reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
             reset:SetSize(120, 22)
-            reset:SetPoint("TOPLEFT", enable_cb, "BOTTOMLEFT", -10, -140)
+            reset:SetPoint("left", move_cb, "right", 120, 0)
             reset:SetText("Reset Position")
             reset:SetScript("OnClick", function()
                 local dPos = M.defaults.positions[cat]
@@ -197,6 +143,82 @@ function M.BuildSettings(parent)
                     update()
                 end
             end)
+
+            -- frame enable checkbox
+            local enable_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
+            enable_cb:SetPoint("TOPLEFT", move_cb, "BOTTOMLEFT", 0, -4)
+            enable_cb.Text:SetText("Enable Frame")
+            enable_cb:SetChecked(M.db[data.show_key])
+            enable_cb:SetScript("OnClick", function(self) M.db[data.show_key] = self:GetChecked() update() end)
+            M.controls[data.show_key] = enable_cb
+
+            -- background checkbox
+            local bg_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
+            bg_cb:SetPoint("left", enable_cb, "RIGHT", 120, 0)
+            bg_cb.Text:SetText("Show Background")
+            bg_cb:SetChecked(M.db[data.bg_key])
+            bg_cb:SetScript("OnClick", function(self) M.db[data.bg_key] = self:GetChecked() update() end)
+            M.controls[data.bg_key] = bg_cb        
+
+            -- bar mode checkbox
+            local bars_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
+            bars_cb:SetPoint("top", enable_cb, "bottom", 0, -4)
+            bars_cb.Text:SetText("Display as Bars")
+            bars_cb:SetChecked(M.db["use_bars_"..cat])
+            bars_cb:SetScript("OnClick", function(self) M.db["use_bars_"..cat] = self:GetChecked() update() end)
+            M.controls["use_bars_"..cat] = bars_cb
+
+            -- bar color picker
+            local color_pick = CreateFrame("Button", nil, p, "BackdropTemplate")
+            color_pick:SetSize(22, 22)
+            color_pick:SetPoint("LEFT", bars_cb, "RIGHT", 120, 0)
+            color_pick:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameColorSwatch", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8})
+            local c = M.db["color_"..cat]
+            color_pick:SetBackdropColor(c.r, c.g, c.b)
+            color_pick:SetScript("OnClick", function()
+                ColorPickerFrame:SetupColorPickerAndShow({
+                    r = c.r, g = c.g, b = c.b,
+                    swatchFunc = function()
+                        local r, g, b = ColorPickerFrame:GetColorRGB()
+                        M.db["color_"..cat] = {r=r, g=g, b=b}
+                        color_pick:SetBackdropColor(r, g, b)
+                        update()
+                    end
+                })
+            end)
+            local c_text = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            c_text:SetPoint("LEFT", color_pick, "RIGHT", 5, 0)
+            c_text:SetText("Bar Color")
+
+            -- color reset button
+            local color_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+            color_reset:SetSize(80, 20)
+            color_reset:SetPoint("left", color_pick, "right", 120, 0)
+            color_reset:SetText("Reset Color")
+            color_reset:SetScript("OnClick", function()
+                local dc = M.defaults["color_"..cat]
+                M.db["color_"..cat] = {r = dc.r, g = dc.g, b = dc.b}
+                color_pick:SetBackdropColor(dc.r, dc.g, dc.b)
+                update()
+            end)
+
+            local space_vert_slide = -40
+
+            -- icon scale
+            local scale_slider = M.CreateSliderWithBox(addon_name..cat.."Scale", p, "Scale", 0.5, 2.5, 0.01, data.scale_key, update)
+            scale_slider:SetPoint("TOPLEFT", bars_cb, "BOTTOMLEFT", 0, space_vert_slide)
+     
+            -- icon spacing
+            local space_slider = M.CreateSliderWithBox(addon_name..cat.."Spacing", p, "Spacing", 0, 40, 0.1, data.spacing_key, update)
+            space_slider:SetPoint("TOPLEFT", scale_slider, "BOTTOMLEFT", 0, space_vert_slide)
+
+            -- Max Icons
+            local pool_slider = M.CreateSliderWithBox(addon_name..cat.."PoolSlider", p, "Max Icons (Requires /reload)", 5, 100, 1, "max_icons_"..cat, function()
+                print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
+            end)
+            pool_slider:SetPoint("TOPLEFT", space_slider, "BOTTOMLEFT", 0, space_vert_slide)
+
+
         end
         tabs[i], panels[i] = tab, p
     end
@@ -216,11 +238,11 @@ end
 
 -- This function is automatically called by the Big Red Button
 function M.on_reset_complete()
-    -- 1. Tell the game to show Blizzard frames again (since DB is now false)
+    -- Tell the game to show Blizzard frames again (since DB is now false)
     M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
     M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
 
-    -- 2. Physically uncheck the boxes in the menu if it's currently open
+    -- Physically uncheck the boxes in the menu if it's currently open
     if M.controls then
         if M.controls["disable_blizz_buffs"] then
             M.controls["disable_blizz_buffs"]:SetChecked(M.db.disable_blizz_buffs)

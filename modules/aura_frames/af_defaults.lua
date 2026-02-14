@@ -27,6 +27,7 @@ M.defaults = {
     width_static    = 200,
     use_bars_static = false,
     color_static    = { r = 0, g = 0.5, b = 1 },
+    max_icons_static = 40,
 
     -- SHORT
     show_short      = false,
@@ -38,6 +39,7 @@ M.defaults = {
     width_short     = 200,
     use_bars_short  = true,
     color_short     = { r = 0, g = 0.5, b = 1 },
+    max_icons_short = 40,
 
     -- LONG
     show_long       = false,
@@ -49,6 +51,7 @@ M.defaults = {
     width_long      = 200,
     use_bars_long   = false,
     color_long      = { r = 0, g = 0.5, b = 1 },
+    max_icons_long  = 40,
 
     -- DEBUFFS
     show_debuff     = false,
@@ -60,6 +63,7 @@ M.defaults = {
     width_debuff    = 200,
     use_bars_debuff = true,
     color_debuff    = { r = 1, g = 0.2, b = 0.2 },
+    max_icons_debuff = 40,
     
     -- POSITIONS
     positions = {
