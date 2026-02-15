@@ -19,13 +19,15 @@ core\init.lua
 core\main_frame.lua
 core\minimap_button.lua
 
-# --- Shared Functions (Shared Utility Library) ---
+# --- Shared Functions ---
 functions\module_reset.lua
+functions\color_picker.lua
 
 # --- Modules ---
 modules\combat_text.lua
 
 modules\aura_frames\af_defaults.lua
 modules\aura_frames\af_logic.lua
-modules\aura_frames\af_gui.lua
 modules\aura_frames\af_main.lua
+modules\aura_frames\af_gui.lua
+

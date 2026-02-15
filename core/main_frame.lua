@@ -9,9 +9,7 @@ function addon.register_category(name, builder)
     table.insert(addon.categories, { name = name, builder = builder })
 end
 
--- ============================================================================
 -- MAIN FRAME UI CREATION
--- ============================================================================
 local function create_main_frame()
     if addon.main_frame then return addon.main_frame end
 
@@ -41,12 +39,11 @@ local function create_main_frame()
     title_bar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
     title_bar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     title_bar:SetBackdropColor(0.12, 0.12, 0.12, 0.95)
-
     title_bar:EnableMouse(true)
     title_bar:RegisterForDrag("LeftButton")
     title_bar:SetScript("OnDragStart", function() frame:StartMoving() end)
     title_bar:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
-
+    
     local title_text = title_bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title_text:SetPoint("CENTER", title_bar, "CENTER", 0, -1)
     title_text:SetText("L's Tweeks")
@@ -78,9 +75,7 @@ local function create_main_frame()
     return frame
 end
 
--- ============================================================================
 -- ABOUT PAGE CONTENT
--- ============================================================================
 local function build_about_page(parent)
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, -20)
@@ -97,9 +92,7 @@ local function build_about_page(parent)
     desc:SetText("A modular collection of UI tweaks and enhancements. This framework allows for independent modules to be registered and reset individually or globally.")
 end
 
--- ============================================================================
 -- INITIALIZER (Dynamic Tab & Sidebar System)
--- ============================================================================
 function addon.init_main_frame()
     local frame = create_main_frame()
     local selected_button = nil
@@ -138,7 +131,7 @@ function addon.init_main_frame()
 
         local y = -10
 
-        -- 1. Build About Button
+        -- Build About Button
         local about_btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
         about_btn:SetSize(120, 22)
         about_btn:SetPoint("TOPLEFT", frame.sidebar, "TOPLEFT", 10, y)
@@ -150,7 +143,7 @@ function addon.init_main_frame()
 
         y = y - 26
 
-        -- 2. Build Category Buttons from registered modules
+        -- Build Category Buttons from registered modules
         for _, cat in ipairs(addon.categories) do
             local btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
             btn:SetSize(120, 22)

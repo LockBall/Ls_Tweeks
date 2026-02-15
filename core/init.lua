@@ -1,49 +1,49 @@
 local addon_name, addon = ...
 addon.name = addon_name
 
--- VERSION RETRIEVAL
-local v_frame = CreateFrame("Frame")
-v_frame:RegisterEvent("ADDON_LOADED")
-v_frame:SetScript("OnEvent", function(self, event, name)
-    if name == addon_name then
-        addon.version = C_AddOns.GetAddOnMetadata(addon_name, "Version")
-    end
-end)
-
 -- DATABASE INITIALIZATION
 local function init_db()
-    if not Ls_Tweeks_DB then
-        Ls_Tweeks_DB = {}
-    end
-
-    -- Core UI settings (Minimap)
+    -- Ensure the global DB exists with the Tweeks spelling
+    _G.Ls_Tweeks_DB = _G.Ls_Tweeks_DB or {}
+    
+    -- Core Minimap defaults
     if not Ls_Tweeks_DB.minimap then
         Ls_Tweeks_DB.minimap = { hide = false }
     end
-    
+
+    -- Ensure the aura_frames sub-table exists for the module to use
+    if not Ls_Tweeks_DB.aura_frames then
+        Ls_Tweeks_DB.aura_frames = {}
+    end
 end
 
 -- MAIN INITIALIZATION SEQUENCE
-local function on_addon_loaded(self, event, name)
+local function on_event(self, event, name)
     if name ~= addon_name then return end
 
-    init_db() -- Global Database
+    -- Store version from TOC
+    addon.version = C_AddOns.GetAddOnMetadata(addon_name, "Version")
 
-    if addon.init_main_frame then -- Core UI Framework, must happen before modules register their categories
+    -- Setup Global DB
+    init_db()
 
+    -- Initialize the core UI frame
+    if addon.init_main_frame then
         addon.init_main_frame()
     end
 
+    -- Initialize the LDB/Minimap button
     if addon.init_minimap_button then
         addon.init_minimap_button()
     end
-
-    -- Module-specific init functions (like aura frames) are self-starting via their own ADDON_LOADED scripts
+    
+    -- Note: Aura Frames will initialize themselves in af_main.lua
+    -- using the Ls_Tweeks_DB.aura_frames table we ensured exists above.
 end
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
-f:SetScript("OnEvent", on_addon_loaded)
+f:SetScript("OnEvent", on_event)
 
 -- SLASH COMMANDS
 SLASH_LSTWEEKS1 = "/lst"

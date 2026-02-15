@@ -2,13 +2,15 @@ local addon_name, addon = ...
 
 -- The Foundation: This shell allows other files to store their 
 -- frames and controls without hitting a 'nil value' error.
-addon.aura_frames = {
-    frames = {},
-    controls = {},
-    db = {}
-}
 
+-- Ensure we don't wipe out the table if it was already created elsewhere
+addon.aura_frames = addon.aura_frames or {}
 local M = addon.aura_frames
+
+-- Ensure sub-tables exist without overwriting them
+M.frames = M.frames or {}
+M.controls = M.controls or {}
+M.db = M.db or {}
 
 -- The Data: strictly default values
 M.defaults = {
@@ -28,6 +30,8 @@ M.defaults = {
     use_bars_static = false,
     color_static    = { r = 0, g = 0.5, b = 1 },
     max_icons_static = 40,
+    growth_static = "RIGHT",
+    bg_color_static = { r = 0, g = 0, b = 0, a = 0.5 },
 
     -- SHORT
     show_short      = false,
@@ -40,6 +44,8 @@ M.defaults = {
     use_bars_short  = true,
     color_short     = { r = 0, g = 0.5, b = 1 },
     max_icons_short = 40,
+    growth_short = "DOWN",
+    bg_color_short = { r = 0, g = 0, b = 0, a = 0.5 },
 
     -- LONG
     show_long       = false,
@@ -52,6 +58,8 @@ M.defaults = {
     use_bars_long   = false,
     color_long      = { r = 0, g = 0.5, b = 1 },
     max_icons_long  = 40,
+    growth_long = "RIGHT",
+    bg_color_long = { r = 0, g = 0, b = 0, a = 0.5 },
 
     -- DEBUFFS
     show_debuff     = false,
@@ -64,6 +72,8 @@ M.defaults = {
     use_bars_debuff = true,
     color_debuff    = { r = 1, g = 0.2, b = 0.2 },
     max_icons_debuff = 40,
+    growth_debuff = "UP",
+    bg_color_debuff = { r = 0, g = 0, b = 0, a = 0.5 },
     
     -- POSITIONS
     positions = {

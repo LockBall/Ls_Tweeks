@@ -21,6 +21,10 @@ local function set_blizz_frame_state(frame, hide)
         elseif frame == DebuffFrame and frame.UpdateAuras then
             frame:UpdateAuras()
         end
+ 
+        if frame.UpdateLayout then
+            frame:UpdateLayout()
+        end
     end
 end
 
@@ -49,7 +53,17 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     local category = show_key:sub(6)
     local frame = CreateFrame("Frame", "LsTweaksAuraFrame_"..show_key, UIParent, "BackdropTemplate")
     frame.category = category
-    frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 }})
+    
+    -- frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 }})
+
+    -- Updated Backdrop for smoother color filling
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8", -- Use a flat white texture for clean coloring
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", 
+        tile = true, tileSize = 16, edgeSize = 12, -- Reduced edgeSize slightly for a sleeker look
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+
     frame:SetMovable(true) 
     frame:SetResizable(true) 
     frame:SetClampedToScreen(true)
@@ -137,7 +151,6 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         obj:SetScript("OnEnter", function(s)
             if s.aura_index then
                 GameTooltip:SetOwner(s, "ANCHOR_BOTTOMRIGHT")
-                -- We use the filter passed to update_auras
                 local filter = is_debuff and "HARMFUL" or "HELPFUL"
                 GameTooltip:SetUnitAura("player", s.aura_index, filter)
                 GameTooltip:Show()
@@ -158,42 +171,45 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     return frame
 end
 
--- INITIALIZATION
+-- INITIALIZATION ENGINE: Orchestrate startup of aura frames once addon data is loaded
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, name)
     if name == addon_name then
-        if not Ls_Tweeks_DB then Ls_Tweeks_DB = {} end
-        if M.defaults then deep_copy(M.defaults, Ls_Tweeks_DB) end
-        
-        M.db = Ls_Tweeks_DB 
+        -- Ensure the sub-table exists and link the module to the core database
+        if not Ls_Tweeks_DB.aura_frames then Ls_Tweeks_DB.aura_frames = {} end
+        M.db = Ls_Tweeks_DB.aura_frames 
 
+        -- Populate missing settings using the defaults defined in af_defaults.lua
+        if M.defaults then deep_copy(M.defaults, M.db) end
+        
+        -- Create the visual containers for each specific category
         M.create_aura_frame("show_static",  "move_static",  "timer_static", "bg_static",    "scale_static", "spacing_static",   "Static",   false)
         M.create_aura_frame("show_short",   "move_short",   "timer_short",  "bg_short",     "scale_short",  "spacing_short",    "Short",    false)
         M.create_aura_frame("show_long",    "move_long",    "timer_long",   "bg_long",      "scale_long",   "spacing_long",     "Long",     false)
         M.create_aura_frame("show_debuff",  "move_debuff",  "timer_debuff", "bg_debuff",    "scale_debuff", "spacing_debuff",   "Debuffs",  true)
         
+        -- Sync the Blizzard frame visibility based on user preferences
         M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
         M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
 
+        -- Integrate the settings tab into the main addon configuration menu
         if addon.register_category and M.BuildSettings then
-            addon.register_category("Buffs & Debuffs", function(parent) 
-                M.BuildSettings(parent)
-            end)
+            addon.register_category("Buffs & Debuffs", function(parent) M.BuildSettings(parent) end)
         end
+
         self:UnregisterEvent("ADDON_LOADED")
     end
-
-    -- This is called automatically by the Big Red Button in module_reset.lua
-    -- Since reset sets them to 'false', this will bring them back.
-    function M.on_reset_complete()
-        M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
-        M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
-        -- 2. Update the checkboxes if the settings window is currently open
-        if M.controls then
-            if M.controls["disable_blizz_buffs"] then M.controls["disable_blizz_buffs"]:SetChecked(M.db.disable_blizz_buffs) end
-            if M.controls["disable_blizz_debuffs"] then M.controls["disable_blizz_debuffs"]:SetChecked(M.db.disable_blizz_debuffs) end
-        end
-    end
-    
 end)
+
+-- RESET AND REFRESH: Restores UI states following a settings reset or global change
+function M.on_reset_complete()
+    M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
+    M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+    
+    -- Synchronize the state of any open GUI controls
+    if M.controls then
+        if M.controls["disable_blizz_buffs"] then M.controls["disable_blizz_buffs"]:SetChecked(M.db.disable_blizz_buffs) end
+        if M.controls["disable_blizz_debuffs"] then M.controls["disable_blizz_debuffs"]:SetChecked(M.db.disable_blizz_debuffs) end
+    end
+end
