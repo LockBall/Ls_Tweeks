@@ -22,6 +22,7 @@ core\minimap_button.lua
 # --- Shared Functions ---
 functions\module_reset.lua
 functions\color_picker.lua
+functions\panel_riveted.lua
 
 # --- Modules ---
 modules\combat_text.lua
