@@ -1,46 +1,49 @@
+-- Ls_Tweeks - combat_text.lua
+
 local addon_name, addon = ...
 
 -- Initialize module table
-addon.combat_text = {
+addon.combat_text = addon.combat_text or {
     controls = {},
-    frames = {} 
+    frames = {}
 }
 
 local M = addon.combat_text
 
 -- Default Settings
 local defaults = {
-    combat_text_portrait_disabled = false,
+    combat_text = false,
 }
-
--- Internal helpers
 local function toggle_portrait_text(disable)
-    -- Target the specific Blizzard HitIndicator
     local h = PlayerFrame
         and PlayerFrame.PlayerFrameContent
         and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
         and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HitIndicator
 
-    if not h then return end
+    if not h then return false end
 
     if disable then
-        h:Hide()
-        -- Safely stop the frame from reacting to combat events
-        h:UnregisterAllEvents() 
+        h:SetAlpha(0)
+        if not M._scriptHooked then
+            h:HookScript("OnShow", function(self)
+                if Ls_Tweeks_DB and Ls_Tweeks_DB.combat_text then
+                    self:SetAlpha(0)
+                end
+            end)
+            M._scriptHooked = true
+        end
     else
-        -- Re-enable the standard Blizzard behavior
-        h:Show()
-        h:RegisterEvent("UNIT_COMBAT")
+        h:SetAlpha(1)
     end
+    return true
+
 end
 
--- Update function
-function M.update_combat_text_portrait()
-    if Ls_Tweeks_DB and Ls_Tweeks_DB.combat_text_portrait_disabled then
-        toggle_portrait_text(true)
-    else
-        toggle_portrait_text(false)
-    end
+-- Update function for GUI and Login
+function M.update_combat_text()
+    if not Ls_Tweeks_DB then return end
+    local desired = Ls_Tweeks_DB.combat_text
+    toggle_portrait_text(desired)
 end
 
 -- Module initializer
@@ -55,8 +58,14 @@ loader:SetScript("OnEvent", function(self, event, name)
             if Ls_Tweeks_DB[k] == nil then Ls_Tweeks_DB[k] = v end
         end
 
-        M.update_combat_text_portrait()
-        
+        -- Create a frame to apply the change once the player frame exists
+        local f = CreateFrame("Frame")
+        f:RegisterEvent("PLAYER_ENTERING_WORLD")
+        f:SetScript("OnEvent", function()
+            M.update_combat_text()
+            f:UnregisterEvent("PLAYER_ENTERING_WORLD")
+        end)
+
         -- Register the GUI Category
         if addon.register_category then
 
@@ -64,14 +73,15 @@ loader:SetScript("OnEvent", function(self, event, name)
                 local cb = CreateFrame("CheckButton", "LST_CombatTextPortraitCB", parent, "InterfaceOptionsCheckButtonTemplate")
                 cb:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, -20)
                 cb.Text:SetText("Disable portrait combat text")
-                cb:SetChecked(Ls_Tweeks_DB.combat_text_portrait_disabled)
+                cb:SetChecked(Ls_Tweeks_DB.combat_text)
 
-                cb:SetScript("OnClick", function(self)
-                    Ls_Tweeks_DB.combat_text_portrait_disabled = self:GetChecked()
-                    M.update_combat_text_portrait()
+                -- Real-time click handler
+                cb:SetScript("OnClick", function(btn)
+                    Ls_Tweeks_DB.combat_text = btn:GetChecked()
+                    M.update_combat_text()
                 end)
 
-                -- Riveted panel note
+                -- Riveted panel & note
                 local panelWidth  = parent:GetWidth() - 60
                 local panelHeight = 140
                 local anchorTo    = cb
@@ -103,7 +113,6 @@ loader:SetScript("OnEvent", function(self, event, name)
                 "\n\nPortrait combat text does not seem to appear while fighting training dummies in rested areas, zzz")
 
                 -- keep references if you need to update later
-                M.controls = M.controls or {}
                 M.controls.portraitNotePanel = notePanel
                 M.controls.portraitNoteText  = noteText
 
