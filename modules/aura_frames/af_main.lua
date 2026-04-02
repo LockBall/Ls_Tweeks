@@ -171,6 +171,26 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     return frame
 end
 
+-- AURA CACHE MANAGER: Maintains aura cache for combat compatibility
+local cache_manager = CreateFrame("Frame")
+cache_manager:RegisterEvent("PLAYER_ENTERING_WORLD")
+cache_manager:RegisterEvent("PLAYER_REGEN_ENABLED")  -- Exiting combat
+cache_manager:RegisterEvent("UNIT_AURA")
+cache_manager:SetScript("OnEvent", function(self, event, unit)
+    if event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED" then
+        -- Full cache refresh when entering world or exiting combat
+        M.cache_auras()
+    elseif event == "UNIT_AURA" and unit == "player" then
+        -- During combat: try to incrementally update cache with new auras
+        -- This captures buffs/debuffs applied during combat
+        if InCombatLockdown() then
+            M.update_cache_from_unit_aura()
+        else
+            M.cache_auras()
+        end
+    end
+end)
+
 -- INITIALIZATION ENGINE: Orchestrate startup of aura frames once addon data is loaded
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")

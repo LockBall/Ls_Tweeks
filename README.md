@@ -14,10 +14,10 @@ A World of Warcraft addon that provides various customizations.
 ## Embedded Libraries
 All embedded libraries are stored in `Libs/` and documented in `Libs/SOURCES.md`.  
 libs are unmodified
-- LibStub
 - CallbackHandler
-- LibDataBroker
 - LibDBIcon
+- LibDataBroker
+- LibStub
 
 ## License
 This project is released under the MIT License.  

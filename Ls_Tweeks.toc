@@ -25,10 +25,5 @@ functions\color_picker.lua
 functions\panel_riveted.lua
 
 # --- Modules ---
+modules\about.lua
 modules\combat_text.lua
-
-modules\aura_frames\af_defaults.lua
-modules\aura_frames\af_logic.lua
-modules\aura_frames\af_main.lua
-modules\aura_frames\af_gui.lua
-

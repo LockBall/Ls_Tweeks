@@ -1,0 +1,96 @@
+-- Ls_Tweeks - about.lua
+
+local addon_name, addon = ...
+
+-- Initialize module table
+addon.about = addon.about or {
+    controls = {},
+    frames = {}
+}
+
+local M = addon.about
+
+-- UI Configuration Constants (module-specific)
+-- Shared values (padding, panel sizes, etc.) come from addon.UI_THEME
+local UI_CONFIG = {
+    title_offset_x = 20,
+    title_offset_y = -20,
+    version_offset_y = -10,
+    panel_offset_y = -20,
+}
+
+-- UI Strings and Labels
+local STRINGS = {
+    category_name = "About",
+    title = "To begin, click a module button on the left.",
+    version_label = "Version: ",
+    description = "A modular collection of UI tweaks and enhancements. This framework allows for independent modules to be registered and reset individually or globally.",
+}
+
+-- Build About page content
+local function build_about_page(parent)
+    local cfg = UI_CONFIG
+    local theme = addon.UI_THEME
+    
+    local title = parent:CreateFontString(nil, "OVERLAY", theme.font_title)
+    title:SetPoint("TOPLEFT", parent, "TOPLEFT", cfg.title_offset_x, cfg.title_offset_y)
+    title:SetText(STRINGS.title)
+    M.controls.title = title
+
+    local version = parent:CreateFontString(nil, "OVERLAY", theme.font_subtitle)
+    version:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, cfg.version_offset_y)
+    version:SetText(STRINGS.version_label .. (addon.version or "0.1.0"))
+    M.controls.version = version
+
+    -- Create riveted panel for description
+    local panelWidth = math.min(theme.panel_max_width, parent:GetWidth() - theme.panel_margin)
+    local descPanel, descText = addon.CreateRivetedPanel(
+        parent,                 -- parent frame
+        panelWidth,             -- width
+        theme.panel_min_height, -- initial height
+        version,                -- anchor to version
+        "TOPLEFT",              -- anchor point
+        0,                      -- x offset
+        cfg.panel_offset_y      -- y offset
+    )
+    
+    -- Safety check
+    if not descPanel or not descText then return end
+    
+    -- Configure description text in panel
+    local pad = theme.padding
+    descText:ClearAllPoints()
+    descText:SetJustifyH("LEFT")
+    descText:SetJustifyV("TOP")
+    descText:SetWordWrap(true)
+    descText:SetText(STRINGS.description)
+    
+    -- Anchor with padding
+    descText:SetPoint("TOPLEFT", descPanel, "TOPLEFT", pad, -pad)
+    descText:SetPoint("RIGHT", descPanel, "RIGHT", -pad, 0)
+    
+    -- Auto-size panel to fit content
+    local textHeight = descText:GetHeight()
+    descPanel:SetHeight(math.max(theme.panel_min_height, textHeight + (pad * 2)))
+    
+    -- Store references
+    M.controls.descPanel = descPanel
+    M.controls.descText = descText
+end
+
+-- Module initializer
+local loader = CreateFrame("Frame")
+loader:RegisterEvent("ADDON_LOADED")
+loader:SetScript("OnEvent", function(self, event, name)
+    if event == "ADDON_LOADED" then
+        if name ~= addon_name then return end
+        
+        -- Register the GUI Category
+        if addon.register_category then
+            addon.register_category(STRINGS.category_name, build_about_page)
+        end
+        
+        self:UnregisterEvent("ADDON_LOADED")
+        self:SetScript("OnEvent", nil)
+    end
+end)

@@ -76,21 +76,7 @@ local function create_main_frame()
 end
 
 -- ABOUT PAGE CONTENT
-local function build_about_page(parent)
-    local title = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    title:SetPoint("TOPLEFT", parent, "TOPLEFT", 20, -20)
-    title:SetText("To begin, click a category button on the left.")
-
-    local version = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    version:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
-    version:SetText("Version: " .. (addon.version or "0.1.0"))
-
-    local desc = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    desc:SetPoint("TOPLEFT", version, "BOTTOMLEFT", 0, -20)
-    desc:SetWidth(400)
-    desc:SetJustifyH("LEFT")
-    desc:SetText("A modular collection of UI tweaks and enhancements. This framework allows for independent modules to be registered and reset individually or globally.")
-end
+-- (Moved to modules/about.lua as a self-registering module)
 
 -- INITIALIZER (Dynamic Tab & Sidebar System)
 function addon.init_main_frame()
@@ -131,19 +117,7 @@ function addon.init_main_frame()
 
         local y = -10
 
-        -- Build About Button
-        local about_btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
-        about_btn:SetSize(120, 22)
-        about_btn:SetPoint("TOPLEFT", frame.sidebar, "TOPLEFT", 10, y)
-        about_btn:SetText("About")
-        about_btn:SetScript("OnClick", function()
-            select_tab("About", build_about_page, about_btn)
-        end)
-        table.insert(frame.buttons, about_btn)
-
-        y = y - 26
-
-        -- Build Category Buttons from registered modules
+        -- Build Category Buttons from registered modules (includes About module)
         for _, cat in ipairs(addon.categories) do
             local btn = CreateFrame("Button", nil, frame.sidebar, "UIPanelButtonTemplate")
             btn:SetSize(120, 22)
@@ -156,9 +130,10 @@ function addon.init_main_frame()
             y = y - 26
         end
 
-        -- If nothing is selected, default to About
-        if not selected_button then
-            select_tab("About", build_about_page, about_btn)
+        -- If nothing is selected, default to the first category (typically About)
+        if not selected_button and #frame.buttons > 0 then
+            local first_cat = addon.categories[1]
+            select_tab(first_cat.name, first_cat.builder, frame.buttons[1])
         end
     end
 

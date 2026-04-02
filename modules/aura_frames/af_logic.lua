@@ -2,13 +2,101 @@ local addon_name, addon = ...
 
 -- CACHED GLOBALS AND CONSTANTS
 local floor, math_max, math_ceil = floor, math.max, math.ceil
-local GetAuraData = C_UnitAuras.GetAuraDataByIndex
+local GetTime = GetTime
+local InCombatLockdown = InCombatLockdown
+local debug_mode = false
+
+-- CACHED GLOBALS AND CONSTANTS
+local floor, math_max, math_ceil = floor, math.max, math.ceil
 local GetTime = GetTime
 local InCombatLockdown = InCombatLockdown
 local debug_mode = false
 
 addon.aura_frames = addon.aura_frames or {}
 local M = addon.aura_frames
+
+-- AURA CACHE: Stores aura data to survive combat lockdown restrictions
+-- Structure: { [spellId or index] = { name, icon, expirationTime, duration, ... } }
+M.aura_cache = {
+    HELPFUL = {},  -- Buffs
+    HARMFUL = {}   -- Debuffs
+}
+
+-- Helper to safely extract aura data (handles "secret" fields during combat)
+local function extract_aura_data(aura_data)
+    if not aura_data then return nil end
+    
+    local result = {
+        auraInstanceID = aura_data.auraInstanceID  -- Always accessible
+    }
+    
+    -- Try to access each field safely - may be secret during combat
+    local safe_fields = {
+        "name", "icon", "count", "debuffType", "duration", 
+        "expirationTime", "isFromPlayerOrPlayerPet", "isHelpful", "isHarmful"
+    }
+    
+    for _, field in ipairs(safe_fields) do
+        local success = pcall(function()
+            result[field] = aura_data[field]
+        end)
+        
+        if not success then
+            result[field] = nil  -- Mark as inaccessible instead of erroring
+        end
+    end
+    
+    -- spellId is often secret - try it but don't fail if we can't get it
+    local success = pcall(function()
+        result.spellId = aura_data.spellId
+    end)
+    
+    return result
+end
+
+local function cache_auras()
+    M.aura_cache.HELPFUL = {}
+    M.aura_cache.HARMFUL = {}
+    
+    -- Scan by index and cache whatever we can access
+    local function scan_filter(filter, cache_table)
+        local index = 1
+        while true do
+            local aura_data = C_UnitAuras.GetAuraDataByIndex("player", index, filter)
+            if not aura_data then break end
+            
+            -- Extract safely, handling secret fields
+            local cached = extract_aura_data(aura_data)
+            if cached then
+                -- Use auraInstanceID (always accessible) as key, fallback to index
+                -- auraInstanceID is unique per aura and safe to use in all combat states
+                local key = cached.auraInstanceID or index
+                
+                -- Guard against secret key values - ensure it's a real number
+                if key ~= nil and type(key) == "number" then
+                    cache_table[key] = cached
+                end
+            end
+            
+            index = index + 1
+        end
+    end
+    
+    scan_filter("HELPFUL", M.aura_cache.HELPFUL)
+    scan_filter("HARMFUL", M.aura_cache.HARMFUL)
+end
+
+M.cache_auras = cache_auras
+
+-- INCREMENTAL CACHE UPDATE (During Combat)
+-- Scan again during combat, using whatever fields are accessible
+local function update_cache_from_unit_aura()
+    -- Always refresh the cache when UNIT_AURA fires, whether in combat or not
+    -- During combat, we get limited data but that's better than frozen data
+    cache_auras()
+end
+
+M.update_cache_from_unit_aura = update_cache_from_unit_aura
 
 -- UTILITY FUNCTIONS
 
@@ -190,38 +278,125 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     end
 
     -- MODERN SCANNING LOOP (Combat Protected)
+    -- Use live API outside combat, cached data during combat
     local display_index = 1
     local index = 1
     local max_limit = db["max_icons_"..category] or 40
+    local in_combat = InCombatLockdown()
+    
+    -- Refresh cache if not in combat
+    if not in_combat then
+        cache_auras()
+    end
+    
+    -- Determine which source to use
+    local aura_source = in_combat and M.aura_cache[filter] or nil
+    
+    if aura_source then
+        -- COMBAT MODE: Iterate cached auras
+        for spell_id, aura_data in pairs(aura_source) do
+            if display_index > max_limit then break end
+            
+            if aura_data.name then
+                local belongs_here = false
 
-    while true do
-        local aura_data = GetAuraData("player", index, filter)
-        if not aura_data or (display_index > max_limit) then break end
+                -- LOGIC: Categorize by duration (wrapped in pcall to handle secret numbers)
+                local success, result = pcall(function()
+                    local exp = aura_data.expirationTime or 0
+                    
+                    if show_key == "show_static" then
+                        return safe_check(exp, "static")
+                    elseif filter == "HARMFUL" then
+                        return true
+                    elseif show_key == "show_short" then
+                        return safe_check(exp, "short", short_threshold)
+                    elseif show_key == "show_long" then
+                        local is_long = safe_check(exp, "long", short_threshold)
+                        local is_secret = not pcall(function() return exp > 0 end)
+                        return is_long or is_secret
+                    end
+                    
+                    return false
+                end)
+                
+                belongs_here = success and result or false
 
-        if aura_data.name then
-            local exp = aura_data.expirationTime or 0
-            local belongs_here = false
-
-            -- LOGIC: Use safe_check to avoid Secret Number crashes
-            if show_key == "show_static" then
-                belongs_here = safe_check(exp, "static")
-            elseif filter == "HARMFUL" then
-                belongs_here = true
-            elseif show_key == "show_short" then
-                belongs_here = safe_check(exp, "short", short_threshold)
-            elseif show_key == "show_long" then
-                -- Fallback logic ensures secret buffs remain visible
-                local is_long = safe_check(exp, "long", short_threshold)
-                local is_secret = not pcall(function() return exp > 0 end)
-                belongs_here = is_long or is_secret
+                if belongs_here then
+                    local obj = self.icons[display_index]
+                    if obj then
+                        -- Display aura from cache
+                        obj.spell_id = spell_id
+                        obj.aura_data = aura_data
+                        obj.texture:SetTexture(aura_data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                        
+                        local use_bars = self._layout_cache.use_bars
+                        if use_bars then
+                            obj.bar:SetStatusBarColor(color.r, color.g, color.b)
+                            obj.name_text:SetText(aura_data.name or "Unknown")
+                        end
+                        
+                        -- Update duration (wrapped in pcall - may fail during combat)
+                        pcall(function()
+                            if (aura_data.expirationTime or 0) > 0 then
+                                local remain = aura_data.expirationTime - GetTime()
+                                obj.time_text:SetText(M.format_time(math_max(0, remain)))
+                                if use_bars then
+                                    obj.bar:SetMinMaxValues(0, aura_data.duration or 1)
+                                    obj.bar:SetValue(math_max(0, remain))
+                                end
+                            else
+                                obj.time_text:SetText("")
+                                if use_bars then
+                                    obj.bar:SetMinMaxValues(0, 1)
+                                    obj.bar:SetValue(1)
+                                end
+                            end
+                        end)
+                        
+                        obj:Show()
+                        display_index = display_index + 1
+                    end
+                end
             end
+        end
+    else
+        -- NORMAL MODE: Iterate live auras via API
+        while true do
+            local aura_data = C_UnitAuras.GetAuraDataByIndex("player", index, filter)
+            if not aura_data or (display_index > max_limit) then break end
 
-            if belongs_here then
-                local obj = self.icons[display_index]
+            if aura_data.name then
+                local belongs_here = false
+
+                -- LOGIC: Categorize by duration (wrapped in pcall to handle secret numbers)
+                local success, result = pcall(function()
+                    local exp = aura_data.expirationTime or 0
+                    
+                    if show_key == "show_static" then
+                        return safe_check(exp, "static")
+                    elseif filter == "HARMFUL" then
+                        return true
+                    elseif show_key == "show_short" then
+                        return safe_check(exp, "short", short_threshold)
+                    elseif show_key == "show_long" then
+                        -- Fallback logic ensures secret buffs remain visible
+                        local is_long = safe_check(exp, "long", short_threshold)
+                        local is_secret = not pcall(function() return exp > 0 end)
+                        return is_long or is_secret
+                    end
+                    
+                    return false
+                end)
+                
+                belongs_here = success and result or false
+
+                if belongs_here then
+                    local obj = self.icons[display_index]
                 if obj then
                     obj.aura_index = index 
                     obj.texture:SetTexture(aura_data.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
                     
+                    local use_bars = self._layout_cache.use_bars
                     if use_bars then
                         obj.bar:Show()
                         obj.bar:SetStatusBarColor(color.r, color.g, color.b)
@@ -232,45 +407,46 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
                         obj.name_text:Hide()
                     end
 
-                    -- Timer Logic: Protected against ticker calculation errors
-                    local has_timing = false
-                    pcall(function() if exp > 0 then has_timing = true end end)
-
-                    if has_timing then
-                        local safe_exp = exp
-                        local safe_dur = aura_data.duration or 0
-                        
-                        local function update_timer()
-                            -- Formula for remaining duration:
-                            -- $$remain = \max(0, safe\_exp - GetTime())$$
-                            local remain = math_max(0, safe_exp - GetTime())
-                            obj.time_text:SetText(M.format_time(remain))
+                    -- Timer Logic: Protected against ticker calculation errors and secret numbers
+                    pcall(function()
+                        local exp = aura_data.expirationTime or 0
+                        if exp > 0 then
+                            local safe_exp = exp
+                            local safe_dur = aura_data.duration or 0
                             
-                            if use_bars and safe_dur > 0 then
-                                obj.bar:SetMinMaxValues(0, safe_dur)
-                                obj.bar:SetValue(remain)
+                            local function update_timer()
+                                local remain = math_max(0, safe_exp - GetTime())
+                                obj.time_text:SetText(M.format_time(remain))
+                                if use_bars and safe_dur > 0 then
+                                    obj.bar:SetMinMaxValues(0, safe_dur)
+                                    obj.bar:SetValue(remain)
+                                end
+                            end
+                            
+                            update_timer()
+                            obj.ticker = C_Timer.NewTicker(0.1, update_timer)
+                        else
+                            obj.time_text:SetText("")
+                            if use_bars then
+                                obj.bar:SetMinMaxValues(0, 1)
+                                obj.bar:SetValue(1)
                             end
                         end
-                        
-                        update_timer()
-                        -- Refreshing at a 0.1 second interval
-                        obj.ticker = C_Timer.NewTicker(0.1, update_timer)
-                    else
-                        obj.time_text:SetText("")
-                        if use_bars then
-                            obj.bar:SetMinMaxValues(0, 1)
-                            obj.bar:SetValue(1)
-                        end
-                    end
+                    end)
 
                     obj:Show()
                     display_index = display_index + 1
                 end
+                end
             end
+            index = index + 1
+            if index > 200 then break end 
         end
-        index = index + 1
-        -- Safety exit to prevent an infinite loop
-        if index > 200 then break end 
+    end
+
+    -- Hide remaining frames beyond display count
+    for i = display_index, #self.icons do
+        self.icons[i]:Hide()
     end
 
     -- Update frame height based on count of icons
@@ -278,6 +454,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
         if display_index > 1 then
             self:Show()
             local total_icons = display_index - 1
+            local use_bars = self._layout_cache.use_bars
             if use_bars then
                 self:SetHeight(total_icons * (20 + spacing) + 12)
             else
