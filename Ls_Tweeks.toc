@@ -20,10 +20,12 @@ core\main_frame.lua
 core\minimap_button.lua
 
 # --- Shared Functions ---
+functions\checkbox.lua
 functions\module_reset.lua
 functions\color_picker.lua
 functions\panel_riveted.lua
 
 # --- Modules ---
 modules\about.lua
+modules\settings.lua
 modules\combat_text.lua

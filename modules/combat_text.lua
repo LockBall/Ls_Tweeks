@@ -122,16 +122,17 @@ loader:SetScript("OnEvent", function(self, event, name)
             addon.register_category(STRINGS.category_name, function(parent)
                 local cfg = UI_CONFIG
                 local theme = addon.UI_THEME
-                local cb = CreateFrame("CheckButton", "LST_CombatTextPortraitCB", parent, "InterfaceOptionsCheckButtonTemplate")
-                cb:SetPoint("TOPLEFT", parent, "TOPLEFT", cfg.checkbox_offset_x, cfg.checkbox_offset_y)
-                cb.Text:SetText(STRINGS.checkbox_label)
-                cb:SetChecked(Ls_Tweeks_DB.combat_text)
-
-                -- Real-time click handler
-                cb:SetScript("OnClick", function(btn)
-                    Ls_Tweeks_DB.combat_text = btn:GetChecked()
-                    M.update_combat_text()
-                end)
+                
+                local cb_container, cb, cb_label = addon.CreateCheckbox(
+                    parent,
+                    STRINGS.checkbox_label,
+                    Ls_Tweeks_DB.combat_text,
+                    function(is_checked)
+                        Ls_Tweeks_DB.combat_text = is_checked
+                        M.update_combat_text()
+                    end
+                )
+                cb_container:SetPoint("TOPLEFT", parent, "TOPLEFT", cfg.checkbox_offset_x, cfg.checkbox_offset_y)
 
                 -- Riveted panel & note
                 local panelWidth = math.min(theme.panel_max_width, parent:GetWidth() - theme.panel_margin)

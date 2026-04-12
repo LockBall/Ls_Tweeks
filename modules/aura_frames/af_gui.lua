@@ -115,33 +115,37 @@ function M.BuildSettings(parent)
             local slider_row = 60
 
             -- ROW: Blizzard Buff Toggle
-            local blizz_buff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            blizz_buff:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            blizz_buff.Text:SetText("Disable Blizzard Buff Frame")
-            blizz_buff:SetChecked(M.db.disable_blizz_buffs)
-            blizz_buff:SetScript("OnClick", function(self) 
-                M.db.disable_blizz_buffs = self:GetChecked() 
-                M.toggle_blizz_buffs(M.db.disable_blizz_buffs) 
-            end)
+            local blizz_buff_container, blizz_buff, _ = addon.CreateCheckbox(
+                p,
+                "Disable Blizzard Buff Frame",
+                M.db.disable_blizz_buffs,
+                function(is_checked)
+                    M.db.disable_blizz_buffs = is_checked
+                    M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
+                end
+            )
+            blizz_buff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls["disable_blizz_buffs"] = blizz_buff
 
             y = y - row -- next row
 
             -- Blizzard Debuff Toggle
-            local blizz_debuff = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            blizz_debuff:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            blizz_debuff.Text:SetText("Disable Blizzard Debuff Frame")
-            blizz_debuff:SetChecked(M.db.disable_blizz_debuffs)
-            blizz_debuff:SetScript("OnClick", function(self) 
-                M.db.disable_blizz_debuffs = self:GetChecked() 
-                M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs) 
-            end)
+            local blizz_debuff_container, blizz_debuff, _ = addon.CreateCheckbox(
+                p,
+                "Disable Blizzard Debuff Frame",
+                M.db.disable_blizz_debuffs,
+                function(is_checked)
+                    M.db.disable_blizz_debuffs = is_checked
+                    M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+                end
+            )
+            blizz_debuff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls["disable_blizz_debuffs"] = blizz_debuff
 
             y = y - slider_row -- next row
 
             -- Threshold Slider
-            local threshold = M.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", function() 
+            local threshold = M.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", function()
                 for k, v in pairs(M.frames) do 
                     -- Corrected to sub(6) to handle keys like show_static, show_short, etc.
                     local cat = k:sub(6) 
@@ -179,11 +183,16 @@ function M.BuildSettings(parent)
             -- first ROW
             
             -- move mode
-            local move_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            move_cb:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            move_cb.Text:SetText("Move Mode")
-            move_cb:SetChecked(M.db[data.move_key])
-            move_cb:SetScript("OnClick", function(self) M.db[data.move_key] = self:GetChecked() update() end)
+            local move_cb_container, move_cb, _ = addon.CreateCheckbox(
+                p,
+                "Move Mode",
+                M.db[data.move_key],
+                function(is_checked)
+                    M.db[data.move_key] = is_checked
+                    update()
+                end
+            )
+            move_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls[data.move_key] = move_cb
 
             -- move Reset
@@ -212,11 +221,16 @@ function M.BuildSettings(parent)
             y = y - row -- new row
             
             -- Enable Frame
-            local enable_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            enable_cb:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            enable_cb.Text:SetText("Enable Frame")
-            enable_cb:SetChecked(M.db[data.show_key])
-            enable_cb:SetScript("OnClick", function(self) M.db[data.show_key] = self:GetChecked() update() end)
+            local enable_cb_container, enable_cb, _ = addon.CreateCheckbox(
+                p,
+                "Enable Frame",
+                M.db[data.show_key],
+                function(is_checked)
+                    M.db[data.show_key] = is_checked
+                    update()
+                end
+            )
+            enable_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls[data.show_key] = enable_cb
 
             -- Growth Direction
@@ -226,11 +240,16 @@ function M.BuildSettings(parent)
             y = y - row -- new row
 
             --Show Background
-            local bg_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            bg_cb:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            bg_cb.Text:SetText("Show Background")
-            bg_cb:SetChecked(M.db[data.bg_key])
-            bg_cb:SetScript("OnClick", function(self) M.db[data.bg_key] = self:GetChecked() update() end)
+            local bg_cb_container, bg_cb, _ = addon.CreateCheckbox(
+                p,
+                "Show Background",
+                M.db[data.bg_key],
+                function(is_checked)
+                    M.db[data.bg_key] = is_checked
+                    update()
+                end
+            )
+            bg_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls[data.bg_key] = bg_cb
 
             -- BG color picker
@@ -242,11 +261,16 @@ function M.BuildSettings(parent)
 
             -- ROW
               -- bar mode
-            local bar_mode_cb = CreateFrame("CheckButton", nil, p, "InterfaceOptionsCheckButtonTemplate")
-            bar_mode_cb:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            bar_mode_cb.Text:SetText("Bar Mode")
-            bar_mode_cb:SetChecked(M.db["use_bars_"..cat])
-            bar_mode_cb:SetScript("OnClick", function(self) M.db["use_bars_"..cat] = self:GetChecked() update() end)
+            local bar_mode_cb_container, bar_mode_cb, _ = addon.CreateCheckbox(
+                p,
+                "Bar Mode",
+                M.db["use_bars_"..cat],
+                function(is_checked)
+                    M.db["use_bars_"..cat] = is_checked
+                    update()
+                end
+            )
+            bar_mode_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls["use_bars_"..cat] = bar_mode_cb
 
             -- bar color picker
