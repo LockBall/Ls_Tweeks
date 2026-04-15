@@ -329,9 +329,12 @@ loader:SetScript("OnEvent", function(self, event, name)
             local now = GetTime()
             for _, frame in pairs(M.frames) do
                 if frame:IsVisible() then
+                    local is_static_frame = (frame.category == "static")
                     for i = 1, #frame.icons do
                         local obj = frame.icons[i]
-                        if obj:IsShown() and obj.aura_index then
+                        if obj:IsShown() and is_static_frame then
+                            obj.time_text:SetText("")
+                        elseif obj:IsShown() and obj.aura_index then
                             local remaining
                             local live_duration = C_UnitAuras.GetAuraDuration("player", obj.aura_index)
                             if live_duration then
@@ -344,7 +347,23 @@ loader:SetScript("OnEvent", function(self, event, name)
                                 remaining = 0
                             end
                             if remaining and issecretvalue(remaining) then
-                                obj.time_text:SetFormattedText("%.1f", remaining)
+                                local display_remaining = nil
+                                local short_threshold = (M.db and M.db.short_threshold) or 60
+                                if obj.aura_expiration and obj.aura_expiration > 0 then
+                                    display_remaining = math_max_local(0, obj.aura_expiration - now)
+                                elseif obj.aura_remaining and obj.aura_remaining > 0 then
+                                    display_remaining = obj.aura_remaining
+                                end
+
+                                if display_remaining and display_remaining > 0 then
+                                    if display_remaining > short_threshold then
+                                        obj.time_text:SetText(M.format_time(display_remaining))
+                                    else
+                                        obj.time_text:SetFormattedText("%.1f", remaining)
+                                    end
+                                else
+                                    obj.time_text:SetFormattedText("%.1f", remaining)
+                                end
                                 if obj.bar and obj.bar:IsShown() and obj.bar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection and live_duration then
                                     obj.bar:SetTimerDuration(live_duration, nil, Enum.StatusBarTimerDirection.RemainingTime)
                                 end

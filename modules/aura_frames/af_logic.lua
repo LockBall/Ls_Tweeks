@@ -378,6 +378,7 @@ local function render_aura_map(self, aura_map, use_bars, color, max_limit, filte
 
     local display_count = math_min(#list, math_min(max_limit, #self.icons))
     local now = GetTime()
+    local is_static_frame = (self.category == "static")
 
     for i = 1, display_count do
         local obj   = self.icons[i]
@@ -443,11 +444,35 @@ local function render_aura_map(self, aura_map, use_bars, color, max_limit, filte
             end
         end
 
+        -- Static frame buffs are effectively permanent; never display a timer string.
+        if is_static_frame then
+            obj.time_text:SetText("")
+            if use_bars then
+                obj.bar:SetMinMaxValues(0, 1)
+                obj.bar:SetValue(1)
+            end
+        else
         -- Prefer live duration by auraInstanceID; fall back to cached values.
         local rem = live_remaining
         if rem ~= nil then
             if issecretvalue(rem) then
-                obj.time_text:SetFormattedText("%.1f", rem)
+                local display_remaining = nil
+                local short_threshold = (M.db and M.db.short_threshold) or 60
+                if entry.expiration and entry.expiration > 0 then
+                    display_remaining = math_max(0, entry.expiration - now)
+                elseif entry.remaining and entry.remaining > 0 then
+                    display_remaining = entry.remaining
+                end
+
+                if display_remaining and display_remaining > 0 then
+                    if display_remaining > short_threshold then
+                        obj.time_text:SetText(M.format_time(display_remaining))
+                    else
+                        obj.time_text:SetFormattedText("%.1f", rem)
+                    end
+                else
+                    obj.time_text:SetFormattedText("%.1f", rem)
+                end
                 if use_bars and obj.bar and obj.bar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection then
                     obj.bar:SetTimerDuration(live_duration, nil, Enum.StatusBarTimerDirection.RemainingTime)
                 end
@@ -485,6 +510,7 @@ local function render_aura_map(self, aura_map, use_bars, color, max_limit, filte
             end
         else
             -- Unknown/secret remaining in combat: keep last rendered text/value.
+        end
         end
 
         obj:Show()
