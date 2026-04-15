@@ -1,6 +1,5 @@
 local addon_name, addon = ...
 
--- LibDataBroker + LibDBIcon integration
 local LDB = LibStub("LibDataBroker-1.1")
 local LDBIcon = LibStub("LibDBIcon-1.0")
 
@@ -30,7 +29,6 @@ end
 
 -- ============================================================================
 -- LDB DATA OBJECT
--- ============================================================================
 -- LibDataBroker: Provides a data source for minimap buttons via LibDBIcon.
 -- OnClick handles left/right button interactions with the minimap icon.
 -- OnTooltipShow provides contextual help when hovering over the button.
@@ -55,7 +53,6 @@ addon.data_object = LDB:NewDataObject(CONFIG.name, {
 
 -- ============================================================================
 -- HELPERS
--- ============================================================================
 function addon.toggle_minimap_button(show)
     Ls_Tweeks_DB.minimap = Ls_Tweeks_DB.minimap or {}
     Ls_Tweeks_DB.minimap.hide = not show

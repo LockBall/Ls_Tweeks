@@ -29,3 +29,9 @@ functions\panel_riveted.lua
 modules\about.lua
 modules\settings.lua
 modules\combat_text.lua
+
+# --- Aura Frames Module ---
+modules\aura_frames\af_defaults.lua
+modules\aura_frames\af_logic.lua
+modules\aura_frames\af_gui.lua
+modules\aura_frames\af_main.lua

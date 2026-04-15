@@ -32,6 +32,7 @@ M.defaults = {
     max_icons_static = 40,
     growth_static = "RIGHT",
     bg_color_static = { r = 0, g = 0, b = 0, a = 0.5 },
+    sort_static  = "name",
 
     -- SHORT
     show_short      = false,
@@ -46,6 +47,7 @@ M.defaults = {
     max_icons_short = 40,
     growth_short = "DOWN",
     bg_color_short = { r = 0, g = 0, b = 0, a = 0.5 },
+    sort_short   = "timeleft",
 
     -- LONG
     show_long       = false,
@@ -60,6 +62,7 @@ M.defaults = {
     max_icons_long  = 40,
     growth_long = "RIGHT",
     bg_color_long = { r = 0, g = 0, b = 0, a = 0.5 },
+    sort_long    = "timeleft",
 
     -- DEBUFFS
     show_debuff     = false,
@@ -74,6 +77,7 @@ M.defaults = {
     max_icons_debuff = 40,
     growth_debuff = "UP",
     bg_color_debuff = { r = 0, g = 0, b = 0, a = 0.5 },
+    sort_debuff  = "timeleft",
     
     -- POSITIONS
     positions = {

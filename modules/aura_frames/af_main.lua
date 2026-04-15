@@ -3,6 +3,7 @@ local M = addon.aura_frames
 
 -- SETTINGS & CONSTANTS
 local MAX_POOL_SIZE = 40 -- Default pre-allocation count
+local issecretvalue = issecretvalue or function() return false end
 
 -- BLIZZARD Buff & Debuff FRAME TOGGLES
 local function set_blizz_frame_state(frame, hide)
@@ -34,6 +35,51 @@ end
 
 function M.toggle_blizz_debuffs(hide)
     set_blizz_frame_state(DebuffFrame, hide)
+end
+
+-- Merge UNIT_AURA payloads while a deferred scan is pending.
+-- Blizzard can fire multiple UNIT_AURA events inside the 0.1s bucket window;
+-- we need to union their added/updated/removed IDs so no aura changes are lost.
+local function merge_aura_info(dst, src)
+    if not src then return dst end
+    dst = dst or {}
+
+    local function merge_id_list(key, list)
+        if not list then return end
+        dst[key] = dst[key] or {}
+        dst[key.."_set"] = dst[key.."_set"] or {}
+        for _, iid in ipairs(list) do
+            if iid and not dst[key.."_set"][iid] then
+                dst[key.."_set"][iid] = true
+                dst[key][#dst[key] + 1] = iid
+            end
+        end
+    end
+
+    merge_id_list("removedAuraInstanceIDs", src.removedAuraInstanceIDs)
+    merge_id_list("updatedAuraInstanceIDs", src.updatedAuraInstanceIDs)
+
+    -- Modern payload: addedAuras = array of aura tables with auraInstanceID.
+    if src.addedAuras then
+        dst.addedAuras = dst.addedAuras or {}
+        dst.addedAuras_set = dst.addedAuras_set or {}
+        for _, aura in ipairs(src.addedAuras) do
+            local iid = aura and aura.auraInstanceID
+            if iid and not dst.addedAuras_set[iid] then
+                dst.addedAuras_set[iid] = true
+                dst.addedAuras[#dst.addedAuras + 1] = aura
+            end
+        end
+    end
+
+    -- Backward/alternate payload support.
+    merge_id_list("addedAuraInstanceIDs", src.addedAuraInstanceIDs)
+
+    if src.isFullUpdate then
+        dst.isFullUpdate = true
+    end
+
+    return dst
 end
 
 -- safely copy default tables into saved variables without reference issues
@@ -121,8 +167,11 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     frame.resizer:SetScript("OnMouseDown", function() frame:StartSizing("RIGHT") end)
     frame.resizer:SetScript("OnMouseUp", function() 
         frame:StopMovingOrSizing() 
-        M.db["width_"..category] = frame:GetWidth() 
-        M.update_auras(frame, show_key, move_key, timer_key, bg_key, scale_key, spacing_key, is_debuff and "HARMFUL" or "HELPFUL") 
+        M.db["width_"..category] = frame:GetWidth()
+        local params = frame.update_params
+        if params then
+            M.update_auras(frame, params.show_key, params.move_key, params.timer_key, params.bg_key, params.scale_key, params.spacing_key, params.filter)
+        end
     end)
 
     -- ICON POOL MANAGEMENT    Pre-create set number of icons/bars to avoid combat lockdown errors
@@ -142,54 +191,118 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         obj.bar:SetMinMaxValues(0, 1)
         obj.bar:Hide()
         
-        -- Text
-        obj.name_text = obj.bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall", 7)
-        obj.time_text = obj.bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall", 7)
+        -- Text Overlay Frame - created AFTER bar so it renders on top
+        -- This is a separate frame layer that ensures text is always visible above the bar
+        obj.text_overlay = CreateFrame("Frame", nil, obj)
+        obj.text_overlay:SetFrameLevel(obj.bar:GetFrameLevel() + 1)
+        
+        -- Text - create as children of text_overlay so they render above the bar
+        obj.name_text  = obj.text_overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall", 7)
+        obj.time_text  = obj.text_overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall", 7)
+        -- Stack count (shown bottom-right of icon in icon mode, or appended in bar mode)
+        obj.count_text = obj.text_overlay:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+        obj.count_text:Hide()
         
         -- Tooltip
         obj:EnableMouse(true)
         obj:SetScript("OnEnter", function(s)
+            if not s.aura_name then return end
+            
+            GameTooltip:SetOwner(s, "ANCHOR_BOTTOMRIGHT")
+            GameTooltip:ClearLines()
+            
+            local updated = false
             if s.aura_index then
-                GameTooltip:SetOwner(s, "ANCHOR_BOTTOMRIGHT")
-                local filter = is_debuff and "HARMFUL" or "HELPFUL"
-                GameTooltip:SetUnitAura("player", s.aura_index, filter)
-                GameTooltip:Show()
+                -- Modern API (12.0.5+): stable auraInstanceID lookup, no index fragility
+                local ok, result = pcall(function()
+                    return GameTooltip:SetUnitAuraByAuraInstanceID("player", s.aura_index)
+                end)
+                updated = ok and result
             end
+            
+            if not updated then
+                GameTooltip:AddLine(s.aura_name, 1, 1, 1)
+                if s.aura_duration and s.aura_duration > 0 then
+                    local remaining_str = s.aura_remaining and string.format("%.1f", s.aura_remaining) or "?"
+                    local duration_str = string.format("%.1f", s.aura_duration)
+                    GameTooltip:AddLine(remaining_str .. "s / " .. duration_str .. "s", 0.7, 0.7, 1)
+                else
+                    GameTooltip:AddLine("(Permanent)", 0.7, 0.7, 1)
+                end
+            end
+            
+            GameTooltip:Show()
         end)
-        obj:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        obj:SetScript("OnLeave", function() 
+            GameTooltip:Hide() 
+        end)
 
         frame.icons[i] = obj
     end
 
+    -- Map-based aura cache: auraInstanceID → entry table. Persists across events.
+    frame._aura_map = {}
+
     frame:RegisterUnitEvent("UNIT_AURA", "player")
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    frame:SetScript("OnEvent", function(self) 
-        M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, spacing_key, is_debuff and "HARMFUL" or "HELPFUL") 
+    frame:RegisterEvent("PLAYER_REGEN_DISABLED")  -- Combat start
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")   -- Combat end
+    
+    -- Store parameters on frame itself for robust access during callbacks
+    frame.update_params = {
+        show_key = show_key,
+        move_key = move_key,
+        timer_key = timer_key,
+        bg_key = bg_key,
+        scale_key = scale_key,
+        spacing_key = spacing_key,
+        category = category,
+        filter = is_debuff and "HARMFUL" or "HELPFUL"
+    }
+    
+    frame:SetScript("OnEvent", function(self, event, unit, info)
+        local params = self.update_params
+        if not params then return end
+
+        local relevant = (event == "UNIT_AURA" and unit == "player")
+            or event == "PLAYER_ENTERING_WORLD"
+            or event == "PLAYER_REGEN_DISABLED"
+            or event == "PLAYER_REGEN_ENABLED"
+
+        if not relevant then return end
+
+        -- KEY: do NOT scan inside the event handler.
+        -- ElkBuffBars uses RegisterBucketEvent("UNIT_AURA", 0.1) for exactly this reason:
+        -- C_UnitAuras calls made directly in OnEvent return "secret values" in combat
+        -- because the execution context is still tainted by the event dispatch.
+        -- Deferring via C_Timer.After(0) runs the scan in the next frame update cycle,
+        -- after the tainted context exits — all fields return clean, readable values.
+        --
+        -- Merge UNIT_AURA payloads while waiting for the deferred scan.
+        if event == "UNIT_AURA" then
+            self._pending_aura_info = merge_aura_info(self._pending_aura_info, info)
+        end
+
+        -- Deduplication: if a scan is already queued for this frame, don't queue another.
+        -- Multiple rapid UNIT_AURA events (common in combat) collapse to one scan.
+        if not self._scan_pending then
+            self._scan_pending = true
+            local f = self
+            -- 0.1s matches ElkBuffBars' RegisterBucketEvent("UNIT_AURA", 0.1) delay.
+            -- This ensures the scan runs outside the event-dispatch taint window.
+            C_Timer.After(0.1, function()
+                f._scan_pending = false
+                local event_info = f._pending_aura_info
+                f._pending_aura_info = nil
+                M.update_auras(f, params.show_key, params.move_key, params.timer_key,
+                    params.bg_key, params.scale_key, params.spacing_key, params.filter, event_info)
+            end)
+        end
     end)
     
     M.frames[show_key] = frame
     return frame
 end
-
--- AURA CACHE MANAGER: Maintains aura cache for combat compatibility
-local cache_manager = CreateFrame("Frame")
-cache_manager:RegisterEvent("PLAYER_ENTERING_WORLD")
-cache_manager:RegisterEvent("PLAYER_REGEN_ENABLED")  -- Exiting combat
-cache_manager:RegisterEvent("UNIT_AURA")
-cache_manager:SetScript("OnEvent", function(self, event, unit)
-    if event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED" then
-        -- Full cache refresh when entering world or exiting combat
-        M.cache_auras()
-    elseif event == "UNIT_AURA" and unit == "player" then
-        -- During combat: try to incrementally update cache with new auras
-        -- This captures buffs/debuffs applied during combat
-        if InCombatLockdown() then
-            M.update_cache_from_unit_aura()
-        else
-            M.cache_auras()
-        end
-    end
-end)
 
 -- INITIALIZATION ENGINE: Orchestrate startup of aura frames once addon data is loaded
 local loader = CreateFrame("Frame")
@@ -208,7 +321,53 @@ loader:SetScript("OnEvent", function(self, event, name)
         M.create_aura_frame("show_short",   "move_short",   "timer_short",  "bg_short",     "scale_short",  "spacing_short",    "Short",    false)
         M.create_aura_frame("show_long",    "move_long",    "timer_long",   "bg_long",      "scale_long",   "spacing_long",     "Long",     false)
         M.create_aura_frame("show_debuff",  "move_debuff",  "timer_debuff", "bg_debuff",    "scale_debuff", "spacing_debuff",   "Debuffs",  true)
-        
+
+        -- Single shared ticker for all frames at 0.1s (ElkBuffBars rate).
+        -- One ticker iterating all frames is far cheaper than 4 separate tickers.
+        local math_max_local = math.max
+        C_Timer.NewTicker(0.1, function()
+            local now = GetTime()
+            for _, frame in pairs(M.frames) do
+                if frame:IsVisible() then
+                    for i = 1, #frame.icons do
+                        local obj = frame.icons[i]
+                        if obj:IsShown() and obj.aura_index then
+                            local remaining
+                            local live_duration = C_UnitAuras.GetAuraDuration("player", obj.aura_index)
+                            if live_duration then
+                                remaining = live_duration:GetRemainingDuration()
+                            elseif obj.aura_expiration and obj.aura_expiration > 0 then
+                                remaining = math_max_local(0, obj.aura_expiration - now)
+                            elseif obj.aura_scan_time and obj.aura_remaining then
+                                remaining = math_max_local(0, obj.aura_remaining - (now - obj.aura_scan_time))
+                            else
+                                remaining = 0
+                            end
+                            if remaining and issecretvalue(remaining) then
+                                obj.time_text:SetFormattedText("%.1f", remaining)
+                                if obj.bar and obj.bar:IsShown() and obj.bar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection and live_duration then
+                                    obj.bar:SetTimerDuration(live_duration, nil, Enum.StatusBarTimerDirection.RemainingTime)
+                                end
+                            elseif remaining and remaining > 0 then
+                                obj.time_text:SetText(M.format_time(remaining))
+                                if obj.bar and obj.bar:IsShown() then
+                                    if obj.bar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection and live_duration then
+                                        obj.bar:SetTimerDuration(live_duration, nil, Enum.StatusBarTimerDirection.RemainingTime)
+                                    else
+                                        obj.bar:SetValue(remaining)
+                                    end
+                                end
+                            elseif remaining == 0 then
+                                obj.time_text:SetText("")
+                            else
+                                -- Unknown/secret value: keep last shown timer text.
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+
         -- Sync the Blizzard frame visibility based on user preferences
         M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
         M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)

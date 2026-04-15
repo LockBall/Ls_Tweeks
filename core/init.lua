@@ -71,9 +71,7 @@ f:SetScript("OnEvent", on_event)
 
 -- SLASH COMMANDS
 -- Primary command: /lt (short for L's Tweeks)
--- Backup command: /lst (legacy)
 SLASH_LSTWEEKS1 = "/lt"
-SLASH_LSTWEEKS2 = "/lst"
 SlashCmdList["LSTWEEKS"] = function(msg)
     if addon.main_frame then
         if addon.main_frame:IsShown() then

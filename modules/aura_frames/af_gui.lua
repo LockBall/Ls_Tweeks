@@ -7,66 +7,150 @@ local M = addon.aura_frames
 -- GUI COMPONENT BUILDERS
 
 -- slider & editbox
+-- Uses MinimalSliderTemplate (available 10.0+) and creates labels as explicit children
+-- instead of relying on the deprecated _G[name..'Low/High/Text'] global pattern.
 function M.CreateSliderWithBox(name, parent, labelText, minV, maxV, step, db_key, callback)
-    local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
+    local slider = CreateFrame("Slider", name, parent, "MinimalSliderTemplate")
+    slider:SetSize(155, 16)
     slider:SetMinMaxValues(minV, maxV)
     slider:SetValueStep(step)
     slider:SetObeyStepOnDrag(true)
     slider:SetValue(M.db[db_key] or minV)
-    _G[name..'Low']:SetText(minV)
-    _G[name..'High']:SetText(maxV)
-    _G[name..'Text']:SetText(labelText)
-    
+
+    local title = slider:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    title:SetPoint("BOTTOM", slider, "TOP", 0, 4)
+    title:SetText(labelText)
+
+    local low_lbl = slider:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    low_lbl:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", 0, -2)
+    low_lbl:SetText(minV)
+
+    local high_lbl = slider:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    high_lbl:SetPoint("TOPRIGHT", slider, "BOTTOMRIGHT", 0, -2)
+    high_lbl:SetText(maxV)
+
     local eb = CreateFrame("EditBox", nil, slider, "InputBoxTemplate")
     eb:SetSize(45, 20)
     eb:SetPoint("LEFT", slider, "RIGHT", 30, 0)
     eb:SetAutoFocus(false)
     eb:SetText(format(step < 1 and "%.2f" or "%.1f", M.db[db_key] or minV))
-    
+
     slider:SetScript("OnValueChanged", function(self, value)
         M.db[db_key] = value
         eb:SetText(format(step < 1 and "%.2f" or "%.1f", value))
         callback()
     end)
-    
+
     eb:SetScript("OnEnterPressed", function(self)
         local val = tonumber(self:GetText())
-        if val then 
-            val = math.max(minV, math.min(maxV, val)) 
-            slider:SetValue(val) 
+        if val then
+            val = math.max(minV, math.min(maxV, val))
+            slider:SetValue(val)
         end
         self:ClearFocus()
     end)
     return slider
 end
 
+-- Shared click-blocker: sits behind all dropdown popups and dismisses the open one
+-- when the user clicks anywhere outside it. One instance, reused by all dropdowns.
+local _dropdown_blocker = CreateFrame("Frame", "LsTweeksDropdownBlocker", UIParent)
+_dropdown_blocker:SetAllPoints(UIParent)
+_dropdown_blocker:SetFrameStrata("FULLSCREEN")
+_dropdown_blocker:SetFrameLevel(98)
+_dropdown_blocker:EnableMouse(true)
+_dropdown_blocker:Hide()
+_dropdown_blocker._active = nil
+_dropdown_blocker:SetScript("OnMouseDown", function(self)
+    if self._active then self._active:Hide() end
+    self._active = nil
+    self:Hide()
+end)
+
+local function _show_dropdown(popup, btn)
+    if _dropdown_blocker._active and _dropdown_blocker._active ~= popup then
+        _dropdown_blocker._active:Hide()
+    end
+    popup:ClearAllPoints()
+    popup:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
+    popup:Show()
+    _dropdown_blocker._active = popup
+    _dropdown_blocker:Show()
+end
+
+local function _hide_dropdown(popup)
+    popup:Hide()
+    if _dropdown_blocker._active == popup then
+        _dropdown_blocker._active = nil
+        _dropdown_blocker:Hide()
+    end
+end
+
 -- growth direction dropdown
+-- Replaces the deprecated UIDropDownMenu API with a custom popup list.
 function M.CreateDirectionDropdown(name, parent, labelText, db_key, callback)
-    local f = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
-    local label = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    local background = _G[f:GetName().."Middle"]
-    label:SetPoint("BOTTOM", f, "TOP", 0, 2)
+    local options = { "RIGHT", "LEFT", "DOWN", "UP" }
+    local current = M.db[db_key] or "DOWN"
+
+    -- Anchor container (caller calls :SetPoint on this)
+    local container = CreateFrame("Frame", name, parent)
+    container:SetSize(106, 22)
+
+    local label = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("BOTTOM", container, "TOP", 0, 2)
     label:SetText(labelText)
 
-    UIDropDownMenu_Initialize(f, function(self, level)
-        local options = {"UP", "DOWN", "LEFT", "RIGHT"}
-        for _, dir in ipairs(options) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = dir
-            info.func = function()
-                UIDropDownMenu_SetSelectedValue(f, dir)
-                M.db[db_key] = dir
-                callback()
-            end
-            info.value = dir
-            UIDropDownMenu_AddButton(info)
+    -- Main toggle button
+    local btn = CreateFrame("Button", name.."Btn", container, "UIPanelButtonTemplate")
+    btn:SetAllPoints(container)
+    btn:SetText(current)
+
+    -- Popup list
+    local row_h = 22
+    local popup = CreateFrame("Frame", name.."Popup", UIParent, "BackdropTemplate")
+    popup:SetSize(106, #options * row_h + 4)
+    popup:SetFrameStrata("FULLSCREEN_DIALOG")
+    popup:SetFrameLevel(100)
+    popup:SetBackdrop({
+        bgFile   = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    popup:SetBackdropColor(0.08, 0.08, 0.08, 0.96)
+    popup:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    popup:Hide()
+
+    for i, dir in ipairs(options) do
+        local row = CreateFrame("Button", nil, popup)
+        row:SetSize(102, row_h)
+        row:SetPoint("TOPLEFT", popup, "TOPLEFT", 2, -(2 + (i - 1) * row_h))
+
+        local hl = row:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 1, 1, 0.12)
+
+        local txt = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        txt:SetPoint("LEFT", row, "LEFT", 8, 0)
+        txt:SetText(dir)
+
+        row:SetScript("OnClick", function()
+            M.db[db_key] = dir
+            btn:SetText(dir)
+            _hide_dropdown(popup)
+            callback()
+        end)
+    end
+
+    btn:SetScript("OnClick", function()
+        if popup:IsShown() then
+            _hide_dropdown(popup)
+        else
+            _show_dropdown(popup, btn)
         end
     end)
 
-    UIDropDownMenu_SetSelectedValue(f, M.db[db_key] or "DOWN")
-    UIDropDownMenu_SetText(f, M.db[db_key] or "DOWN")
-    UIDropDownMenu_SetWidth(f, 80)
-    return f
+    return container
 end
 
 -- tabs settings controls
