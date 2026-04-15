@@ -1,11 +1,14 @@
+## Title: L's Tweeks
 ## Title-enUS: L's Tweeks
 ## Author: John P Lutz
+## Notes: WIP UI adjustments and optional modules
 ## Notes-enUS: WIP UI adjustments and optional modules
+## Category: User Interface
 ## Category-enUS: User Interface
 ## Interface: 120000
 ## Version: 0.2.0
 
-## IconTexture: Interface\AddOns\Ls_Tweeks\media\icon_256.tga
+## IconTexture: Interface\AddOns\LsTweeks\media\icon_256.tga
 ## SavedVariables: Ls_Tweeks_DB
 
 # --- Libraries ---

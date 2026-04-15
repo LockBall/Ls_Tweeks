@@ -1,4 +1,4 @@
--- Ls_Tweeks - about.lua
+-- LsTweeks - about.lua
 
 local addon_name, addon = ...
 
@@ -25,7 +25,7 @@ local STRINGS = {
     title = "To begin, click a module button on the left.",
     version_label = "Version: ",
     description = "A modular collection of UI tweaks."
-    .. "\n\nInspired by and based on Elkano's Buff Bars by Elkano.",
+    .. "\n\nBuff and DeBuff handling inspired by and based on Elkano's Buff Bars by Elkano.",
 }
 
 -- Build About page content

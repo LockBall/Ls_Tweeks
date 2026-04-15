@@ -6,11 +6,11 @@ local LDBIcon = LibStub("LibDBIcon-1.0")
 -- Configuration Constants
 local CONFIG = {
     name = "Ls_Tweeks_Minimap",
-    icon = "Interface\\AddOns\\Ls_Tweeks\\media\\icon_256",
+    icon = "Interface\\AddOns\\LsTweeks\\media\\icon_256",
     title = "L's Tweeks",
     tooltip_left_click = "Left-click: Open main window",
     tooltip_right_click = "Right-click: (reserved)",
-    msg_right_click = "|cff00ff00Ls_Tweeks:|r Right-click menu not implemented yet.",
+    msg_right_click = "|cff00ff00LsTweeks:|r Right-click menu not implemented yet.",
 }
 
 -- Helper: Toggle main frame visibility
