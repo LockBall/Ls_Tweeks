@@ -52,7 +52,7 @@ end
 
 -- Build an entry table. duration/expiration/count are pre-validated (non-secret).
 -- name/icon/dispel_name may be secret strings — safe for SetText/SetTexture.
-local function make_entry(iid, name, icon, duration, expiration, spell_id, dispel_name, rem, count, filter)
+local function make_entry(iid, name, icon, duration, expiration, spell_id, dispel_name, rem, count, filter, added_at)
     return {
         instance_id = iid,
         name        = name,
@@ -64,7 +64,32 @@ local function make_entry(iid, name, icon, duration, expiration, spell_id, dispe
         remaining   = rem,
         count       = count,
         filter      = filter,
+        added_at    = added_at or GetTime(),
     }
+end
+
+local function make_order_key(spell_id, name, icon, filter)
+    local f = filter or ""
+    local sid = (spell_id ~= nil and not issecretvalue(spell_id)) and tostring(spell_id) or nil
+    local n = (name ~= nil and not issecretvalue(name)) and tostring(name) or nil
+    local i = (icon ~= nil and not issecretvalue(icon)) and tostring(icon) or nil
+
+    -- If we have no non-secret aura identity fields, skip keying entirely.
+    if not sid and not n and not i then
+        return nil
+    end
+
+    return f .. "|" .. (sid or "") .. "|" .. (n or "") .. "|" .. (i or "")
+end
+
+local function get_safe_spell_id(raw_spell_id, old_entry)
+    if raw_spell_id ~= nil and not issecretvalue(raw_spell_id) then
+        return raw_spell_id
+    end
+    if old_entry and old_entry.spell_id ~= nil and not issecretvalue(old_entry.spell_id) then
+        return old_entry.spell_id
+    end
+    return nil
 end
 
 -- Apply delta updates during combat using UNIT_AURA event info parameter.
@@ -170,17 +195,208 @@ local function apply_combat_delta(aura_map, info, filter, show_key, short_thresh
     return true
 end
 
+-- Shared helpful-aura scan/classifier.
+-- 12.0.5+ API usage:
+--   * C_UnitAuras.GetBuffDataByIndex
+--   * C_UnitAuras.DoesAuraHaveExpirationTime
+--   * C_UnitAuras.GetAuraDuration
+-- Each helpful aura is assigned to exactly one category: static/short/long.
+local function scan_helpful_shared(info, short_threshold, max_limit_hint)
+    M.db.known_static_spell_ids = M.db.known_static_spell_ids or {}
+    M._helpful_shared = M._helpful_shared or {
+        map = {},
+        category_by_iid = {},
+        category_by_spell = {},
+    }
+
+    local shared = M._helpful_shared
+    local old_map = shared.map or {}
+    local old_cat_iid = shared.category_by_iid or {}
+    local old_cat_spell = shared.category_by_spell or {}
+
+    local old_added_by_key = {}
+    for _, entry in pairs(old_map) do
+        local key = make_order_key(entry.spell_id, entry.name, entry.icon, entry.filter)
+        if key and entry.added_at and (not old_added_by_key[key] or entry.added_at < old_added_by_key[key]) then
+            old_added_by_key[key] = entry.added_at
+        end
+    end
+
+    local added_lookup = {}
+    local added_count = 0
+    if info then
+        if info.addedAuras then
+            for _, added_aura in ipairs(info.addedAuras) do
+                local iid = added_aura and added_aura.auraInstanceID
+                if iid then
+                    added_lookup[iid] = added_aura
+                    added_count = added_count + 1
+                end
+            end
+        elseif info.addedAuraInstanceIDs then
+            for _, iid in ipairs(info.addedAuraInstanceIDs) do
+                if iid then
+                    added_lookup[iid] = true
+                    added_count = added_count + 1
+                end
+            end
+        end
+    end
+
+    local removed_count = 0
+    local replacement_pref = nil
+    if info and info.removedAuraInstanceIDs then
+        removed_count = #info.removedAuraInstanceIDs
+        if removed_count == 1 and added_count == 1 then
+            local rid = info.removedAuraInstanceIDs[1]
+            replacement_pref = old_cat_iid[rid]
+        end
+    end
+
+    local db = M.db
+    local shared_max = math_max(
+        db.max_icons_static or 40,
+        math_max(db.max_icons_short or 40, db.max_icons_long or 40)
+    )
+    local max_limit = math_max(max_limit_hint or 0, shared_max)
+
+    local new_map = {}
+    local new_cat_iid = {}
+    local new_cat_spell = {}
+
+    local i, count = 1, 0
+    while count < max_limit do
+        local aura = C_UnitAuras.GetBuffDataByIndex("player", i)
+        if not aura then break end
+        i = i + 1
+
+        local iid = aura.auraInstanceID
+        if not iid then break end
+
+        local old_entry = old_map[iid]
+        local safe_spell_id = get_safe_spell_id(aura.spellId, old_entry)
+        local duration = aura.duration
+        local expiration = aura.expirationTime
+        local rem = compute_remaining(duration, expiration)
+
+        local category = nil
+
+        if safe_spell_id and M.db.known_static_spell_ids[safe_spell_id] then
+            category = "show_static"
+        elseif rem ~= nil then
+            if rem == 0 then
+                category = "show_static"
+            elseif rem <= short_threshold then
+                category = "show_short"
+            else
+                category = "show_long"
+            end
+        else
+            local expires = C_UnitAuras.DoesAuraHaveExpirationTime("player", iid)
+            local expires_known
+            if type(expires) ~= "boolean" then
+                expires_known = false
+            elseif issecretvalue(expires) then
+                expires_known = nil
+            else
+                expires_known = expires
+            end
+
+            if expires_known == false then
+                category = "show_static"
+            elseif expires_known == true then
+                local old_cat = old_cat_iid[iid] or (safe_spell_id and old_cat_spell[safe_spell_id])
+                if old_cat == "show_long" then
+                    category = "show_long"
+                else
+                    category = "show_short"
+                end
+            else
+                local old_cat = old_cat_iid[iid] or (safe_spell_id and old_cat_spell[safe_spell_id])
+                if old_cat then
+                    category = old_cat
+                elseif added_lookup[iid] and replacement_pref then
+                    category = replacement_pref
+                else
+                    local live_duration = C_UnitAuras.GetAuraDuration("player", iid)
+                    category = live_duration and "show_short" or "show_static"
+                end
+            end
+        end
+
+        if category then
+            local name = aura.name
+            local icon = aura.icon
+            local dispel = aura.dispelName
+            if issecretvalue(dispel) then dispel = nil end
+
+            local applications = aura.applications
+            local stacks = (not issecretvalue(applications) and applications and applications > 1) and applications or 0
+
+            local safe_duration = (not issecretvalue(duration)) and duration
+                or (old_entry and old_entry.duration)
+                or 0
+            local safe_expiration = (not issecretvalue(expiration)) and expiration
+                or (old_entry and old_entry.expiration)
+                or 0
+            local safe_remaining = rem
+            if (not safe_remaining or safe_remaining <= 0) and safe_expiration and safe_expiration > 0 then
+                safe_remaining = math_max(0, safe_expiration - GetTime())
+            elseif (not safe_remaining or safe_remaining <= 0) and old_entry and old_entry.remaining then
+                safe_remaining = old_entry.remaining
+            end
+
+            local key = make_order_key(aura.spellId, name, icon, "HELPFUL")
+            local recovered_added_at = (old_entry and old_entry.added_at)
+                or (key and old_added_by_key[key] or nil)
+
+            local entry = make_entry(
+                iid,
+                name,
+                icon,
+                safe_duration,
+                safe_expiration,
+                safe_spell_id,
+                dispel,
+                safe_remaining or 0,
+                stacks,
+                "HELPFUL",
+                recovered_added_at or GetTime()
+            )
+
+            new_map[iid] = entry
+            new_cat_iid[iid] = category
+            if safe_spell_id then
+                new_cat_spell[safe_spell_id] = category
+            end
+
+            if category == "show_static" and safe_spell_id then
+                M.db.known_static_spell_ids[safe_spell_id] = true
+            end
+
+            count = count + 1
+        end
+    end
+
+    shared.map = new_map
+    shared.category_by_iid = new_cat_iid
+    shared.category_by_spell = new_cat_spell
+    return shared
+end
+
 -- Full scan using ElkBuffBars approach:
 --   • Runs after deferred bucket, including in combat
 --   • issecretvalue() only where comparisons/arithmetic need protection
 --   • Stores raw name/icon fields for rendering, even if secret
 --   • Uses UNIT_AURA payload as a hint for brand-new unknown-timing auras
 local function full_scan(aura_map, filter, show_key, short_threshold, max_limit, info)
+    M.db.known_static_spell_ids = M.db.known_static_spell_ids or {}
     local get_fn = (filter == "HELPFUL")
         and C_UnitAuras.GetBuffDataByIndex
         or  C_UnitAuras.GetDebuffDataByIndex
 
     local added_lookup
+    local added_count = 0
     if info then
         if info.addedAuras then
             added_lookup = {}
@@ -188,6 +404,7 @@ local function full_scan(aura_map, filter, show_key, short_threshold, max_limit,
                 local iid = added_aura and added_aura.auraInstanceID
                 if iid then
                     added_lookup[iid] = added_aura
+                    added_count = added_count + 1
                 end
             end
         elseif info.addedAuraInstanceIDs then
@@ -195,14 +412,36 @@ local function full_scan(aura_map, filter, show_key, short_threshold, max_limit,
             for _, iid in ipairs(info.addedAuraInstanceIDs) do
                 if iid then
                     added_lookup[iid] = true
+                    added_count = added_count + 1
                 end
             end
         end
     end
 
+    local removed_count = 0
+    if info and info.removedAuraInstanceIDs then
+        removed_count = #info.removedAuraInstanceIDs
+    end
+
     -- Snapshot pre-wipe so we can restore entries when fields turn secret
     local old_map = {}
     for iid, entry in pairs(aura_map) do old_map[iid] = entry end
+    local frame_had_removal = false
+    if info and info.removedAuraInstanceIDs then
+        for _, rid in ipairs(info.removedAuraInstanceIDs) do
+            if old_map[rid] ~= nil then
+                frame_had_removal = true
+                break
+            end
+        end
+    end
+    local old_added_by_key = {}
+    for _, entry in pairs(old_map) do
+        local key = make_order_key(entry.spell_id, entry.name, entry.icon, entry.filter)
+        if key and entry.added_at and (not old_added_by_key[key] or entry.added_at < old_added_by_key[key]) then
+            old_added_by_key[key] = entry.added_at
+        end
+    end
     wipe(aura_map)
 
     local i, count = 1, 0
@@ -246,25 +485,97 @@ local function full_scan(aura_map, filter, show_key, short_threshold, max_limit,
             end
 
             local belongs
-            if expires_known == nil then
-                -- For established auras, keep the previous frame placement.
-                -- For brand-new auras, use the UNIT_AURA added payload as a hint and
-                -- fall back to the same practical mapping ElkBuffBars effectively allows:
-                -- debuffs always show, unknown timed buffs go to short, unknown permanent buffs go to static.
+            local added_data = added_lookup and added_lookup[iid]
+            local old_entry = old_map[iid]
+            local safe_spell_id = get_safe_spell_id(aura.spellId, old_entry)
+            local hinted_duration
+            local hinted_expiration
+            local hinted_spell_id
+            if type(added_data) == "table" then
+                hinted_duration = added_data.duration
+                if issecretvalue(hinted_duration) then hinted_duration = nil end
+                hinted_expiration = added_data.expirationTime
+                if issecretvalue(hinted_expiration) then hinted_expiration = nil end
+                hinted_spell_id = get_safe_spell_id(added_data.spellId, nil)
+            end
+            local is_new_added = (old_map[iid] == nil) and (added_data ~= nil)
+
+            -- For brand-new auras added during combat, classify deterministically:
+            -- static unless we have explicit timed evidence.
+            if is_new_added then
+                local is_timed = false
+                local timed_known = false
+                local known_static = false
+
+                if hinted_spell_id and M.db.known_static_spell_ids[hinted_spell_id] then
+                    known_static = true
+                elseif safe_spell_id and M.db.known_static_spell_ids[safe_spell_id] then
+                    known_static = true
+                end
+
+                if known_static then
+                    is_timed = false
+                    timed_known = true
+                end
+
+                if not timed_known and hinted_duration ~= nil then
+                    is_timed = (hinted_duration > 0)
+                    timed_known = true
+                elseif not timed_known and hinted_expiration ~= nil then
+                    is_timed = (hinted_expiration > 0)
+                    timed_known = true
+                elseif not timed_known and expires_known ~= nil then
+                    -- Trust explicit API boolean when readable.
+                    is_timed = expires_known
+                    timed_known = true
+                elseif not timed_known then
+                    local live_duration = C_UnitAuras.GetAuraDuration("player", iid)
+                    if live_duration then
+                        -- A live duration object is strong timed evidence for normal combat buffs.
+                        -- Known static buffs are already handled above by the learned lookup.
+                        is_timed = true
+                        timed_known = true
+                    end
+                end
+
+                if not timed_known then
+                    -- Last resort for unknown new adds:
+                    -- prefer short unless we have explicit non-expiring evidence.
+                    -- This keeps normal short buffs from falling into static while
+                    -- still allowing permanent auras to route static when expires_known=false.
+                    if show_key == "show_static" and frame_had_removal then
+                        -- Static-aura replacement in combat (e.g. paladin aura swap).
+                        is_timed = false
+                    elseif show_key == "show_short"
+                        and not frame_had_removal
+                        and removed_count > 0
+                        and added_count <= 1 then
+                        -- Likely replacement swap handled by another frame; prevent
+                        -- unknown new aura from leaking into short as a duplicate.
+                        is_timed = false
+                    else
+                        is_timed = (expires_known ~= false)
+                    end
+                end
+
+                if show_key == "show_debuff" then
+                    belongs = true
+                elseif show_key == "show_static" then
+                    belongs = not is_timed
+                elseif show_key == "show_short" then
+                    belongs = is_timed
+                elseif show_key == "show_long" then
+                    belongs = false
+                else
+                    belongs = false
+                end
+
+            elseif expires_known == nil then
+                -- For established auras with fully unknown timing, keep prior placement.
                 if old_map[iid] ~= nil then
                     belongs = true
                 elseif show_key == "show_debuff" then
                     belongs = true
-                elseif added_lookup and added_lookup[iid] then
-                    if show_key == "show_static" then
-                        belongs = false
-                    elseif show_key == "show_short" then
-                        belongs = true
-                    elseif show_key == "show_long" then
-                        belongs = false
-                    else
-                        belongs = false
-                    end
                 else
                     belongs = false
                 end
@@ -299,7 +610,9 @@ local function full_scan(aura_map, filter, show_key, short_threshold, max_limit,
                 -- New auras with entirely secret fields get a minimal stub.
                 local entry = old_map[iid]
                 if not entry then
-                    entry = make_entry(iid, name, icon, 0, 0, aura.spellId, dispel, 0, stacks, filter)
+                    local key = make_order_key(aura.spellId, name, icon, filter)
+                    local recovered_added_at = key and old_added_by_key[key] or nil
+                    entry = make_entry(iid, name, icon, 0, 0, safe_spell_id, dispel, 0, stacks, filter, recovered_added_at or GetTime())
                 end
                 aura_map[iid] = entry
                 count = count + 1
@@ -319,6 +632,7 @@ local function full_scan(aura_map, filter, show_key, short_threshold, max_limit,
 
             if belongs then
                 local old_entry = old_map[iid]
+                local safe_spell_id = get_safe_spell_id(aura.spellId, old_entry)
                 local safe_duration = (not issecretvalue(duration)) and duration
                     or (old_entry and old_entry.duration)
                     or 0
@@ -334,12 +648,20 @@ local function full_scan(aura_map, filter, show_key, short_threshold, max_limit,
                 elseif (not safe_remaining or safe_remaining <= 0) and old_entry and old_entry.remaining then
                     safe_remaining = old_entry.remaining
                 end
+                local key = make_order_key(aura.spellId, name, icon, filter)
+                local recovered_added_at = (old_entry and old_entry.added_at)
+                    or (key and old_added_by_key[key] or nil)
                 aura_map[iid] = make_entry(
                     iid, name, icon,
                     safe_duration, safe_expiration,
-                    aura.spellId, dispel,
-                    safe_remaining or 0, safe_count, filter
+                    safe_spell_id, dispel,
+                    safe_remaining or 0, safe_count, filter,
+                    recovered_added_at or GetTime()
                 )
+
+                if show_key == "show_static" and safe_spell_id then
+                    M.db.known_static_spell_ids[safe_spell_id] = true
+                end
                 count = count + 1
             end
         end
@@ -374,6 +696,45 @@ local function render_aura_map(self, aura_map, use_bars, color, max_limit, filte
         -- Fallback: iterate map directly (sorted_ids nil = API unavailable)
         for _, entry in pairs(aura_map) do list[#list + 1] = entry end
         table.sort(list, function(a, b) return a.instance_id < b.instance_id end)
+    end
+
+    -- Short frame ordering: stable per-aura order key so stack updates don't
+    -- reposition existing buffs. New keys get appended at the end.
+    if self.category == "short" then
+        self._short_order_map = self._short_order_map or {}
+        self._short_order_next = self._short_order_next or 1
+
+        local seen_keys = {}
+        for _, entry in ipairs(list) do
+            local key = make_order_key(entry.spell_id, entry.name, entry.icon, entry.filter)
+            if not key then
+                key = "iid:" .. tostring(entry.instance_id)
+            end
+
+            if not self._short_order_map[key] then
+                self._short_order_map[key] = self._short_order_next
+                self._short_order_next = self._short_order_next + 1
+            end
+
+            entry._short_order = self._short_order_map[key]
+            seen_keys[key] = true
+        end
+
+        -- Cleanup removed keys so re-applied buffs are treated as new entries.
+        for key in pairs(self._short_order_map) do
+            if not seen_keys[key] then
+                self._short_order_map[key] = nil
+            end
+        end
+
+        table.sort(list, function(a, b)
+            local aa = a._short_order or 0
+            local bb = b._short_order or 0
+            if aa == bb then
+                return a.instance_id < b.instance_id
+            end
+            return aa < bb
+        end)
     end
 
     local display_count = math_min(#list, math_min(max_limit, #self.icons))
@@ -676,11 +1037,20 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 
     if not self._aura_map then self._aura_map = {} end
 
-    -- ElkBuffBars-style strategy:
-    -- Always scan after the deferred bucket, including in combat.
-    -- The 0.1s delay moves us out of the event-dispatch taint window.
-    -- UNIT_AURA payload is only used as a hint for classifying brand-new unknown-timing auras.
-    full_scan(self._aura_map, filter, show_key, short_threshold, max_limit, info)
+    -- Helpful auras use a shared one-pass classifier so each aura belongs to
+    -- exactly one frame category at a time (static/short/long).
+    if filter == "HELPFUL" then
+        local shared = scan_helpful_shared(info, short_threshold, max_limit)
+        wipe(self._aura_map)
+        for iid, entry in pairs(shared.map) do
+            if shared.category_by_iid[iid] == show_key then
+                self._aura_map[iid] = entry
+            end
+        end
+    else
+        -- Debuffs remain on per-frame scan logic.
+        full_scan(self._aura_map, filter, show_key, short_threshold, max_limit, info)
+    end
 
     local display_count = render_aura_map(
         self, self._aura_map, use_bars, color, max_limit, filter, sort_mode
