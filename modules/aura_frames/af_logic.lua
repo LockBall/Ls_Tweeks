@@ -398,9 +398,25 @@ local function render_aura_map(self, aura_map, use_bars, color, max_limit, filte
 
         obj.texture:SetTexture(entry.icon)  -- secret icon OK for SetTexture
 
-        local stack_text = live_count
-        if stack_text == nil and entry.count and entry.count > 1 then
+        local stack_text = nil
+        if live_count ~= nil and not issecretvalue(live_count) then
+            if type(live_count) == "number" then
+                if live_count > 1 then
+                    stack_text = live_count
+                end
+            elseif type(live_count) == "string" then
+                if live_count ~= "" and live_count ~= "1" then
+                    stack_text = live_count
+                end
+            else
+                stack_text = live_count
+            end
+        elseif entry.count and entry.count > 1 then
             stack_text = entry.count
+        else
+            -- Secret live_count is safe to display, but we cannot compare it.
+            -- Preserve combat behavior by showing it only when no safe fallback exists.
+            stack_text = live_count
         end
         if use_bars then
             obj.bar:Show()
@@ -409,7 +425,7 @@ local function render_aura_map(self, aura_map, use_bars, color, max_limit, filte
             obj.name_text:SetText(entry.name)  -- name may be secret; SetText is safe
             obj.name_text:Show()
             if stack_text ~= nil then
-                obj.count_text:SetText("x"..stack_text)
+                obj.count_text:SetText(stack_text)
                 obj.count_text:SetPoint("LEFT", obj.bar, "LEFT", 4, 0)
                 obj.count_text:Show()
             else
