@@ -71,3 +71,31 @@ function addon.CreateRivetedPanel(parent, width, height, anchorTo, anchorPoint, 
 
     return panel, text
 end
+
+-- Shared corner-rivet painter. Paints 4 masked screws at the corners of `frame`.
+-- Used by both CreateRivetedPanel (above) and module_reset's CreateGlobalReset.
+function addon.AddRivetCorners(frame, inset)
+    local function PaintRivet(point, rx, ry)
+        local s = frame:CreateTexture(nil, "OVERLAY", nil, 6)
+        s:SetSize(10, 10)
+        s:SetTexture("Interface\\Buttons\\WHITE8x8")
+        s:SetVertexColor(0.3, 0.3, 0.3, 1.0)
+        s:SetPoint(point, frame, point, rx, ry)
+
+        local m = frame:CreateMaskTexture()
+        m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(s)
+        s:AddMaskTexture(m)
+
+        local shine = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+        shine:SetSize(3, 3)
+        shine:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+        shine:SetVertexColor(0.8, 0.8, 0.8, 0.4)
+        shine:SetPoint("CENTER", s, "CENTER", -2, 2)
+        shine:AddMaskTexture(m)
+    end
+    PaintRivet("TOPLEFT",      inset, -inset)
+    PaintRivet("TOPRIGHT",    -inset, -inset)
+    PaintRivet("BOTTOMLEFT",   inset,  inset)
+    PaintRivet("BOTTOMRIGHT", -inset,  inset)
+end

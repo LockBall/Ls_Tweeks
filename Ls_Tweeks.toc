@@ -3,7 +3,7 @@
 ## Notes-enUS: WIP UI adjustments and optional modules
 ## Category-enUS: User Interface
 ## Interface: 120000
-## Version: 0.1.0
+## Version: 0.2.0
 
 ## IconTexture: Interface\AddOns\Ls_Tweeks\media\icon_256.tga
 ## SavedVariables: Ls_Tweeks_DB

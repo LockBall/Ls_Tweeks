@@ -38,30 +38,7 @@ function addon.CreateGlobalReset(parent, anchorFrame, db, defaults)
     container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6)
 
     -- BOLTED PANEL DETAIL
-    local function CreateScrew(point, x, y)
-        local s = container:CreateTexture(nil, "OVERLAY", nil, 6)
-        s:SetSize(10, 10)
-        s:SetTexture("Interface\\Buttons\\WHITE8x8")
-        s:SetVertexColor(0.3, 0.3, 0.3, 1.0)
-        s:SetPoint(point, container, point, x, y)
-
-        local m = container:CreateMaskTexture()
-        m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        m:SetAllPoints(s)
-        s:AddMaskTexture(m)
-
-        local shine = container:CreateTexture(nil, "OVERLAY", nil, 7)
-        shine:SetSize(3, 3)
-        shine:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
-        shine:SetVertexColor(0.8, 0.8, 0.8, 0.4)
-        shine:SetPoint("CENTER", s, "CENTER", -2, 2)
-        shine:AddMaskTexture(m)
-    end
-
-    CreateScrew("TOPLEFT",     14, -14)
-    CreateScrew("TOPRIGHT",   -14, -14)
-    CreateScrew("BOTTOMLEFT",  14,  14)
-    CreateScrew("BOTTOMRIGHT", -14, 14)
+    addon.AddRivetCorners(container, 14)
 
     -- TITLE
     local title = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

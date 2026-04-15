@@ -28,4 +28,9 @@ Copyright © 2026 **John P. Lutz**
 ## Credits
 - LibStub, CallbackHandler‑1.0, LibDataBroker‑1.1, and LibDBIcon‑1.0  
   by their respective authors on WowAce / CurseForge.
+
+- Portions of this addon were developed with assistance by generative tools.
+
+- Inspired by and based on the design and behavior of Elkano's BuffBars by Elkano.
+
 - Addon design and implementation by **John P. Lutz**.

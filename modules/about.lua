@@ -24,7 +24,8 @@ local STRINGS = {
     category_name = "About",
     title = "To begin, click a module button on the left.",
     version_label = "Version: ",
-    description = "A modular collection of UI tweaks.",
+    description = "A modular collection of UI tweaks."
+    .. "\n\nInspired by and based on Elkano's Buff Bars by Elkano.",
 }
 
 -- Build About page content
