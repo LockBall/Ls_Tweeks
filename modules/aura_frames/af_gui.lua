@@ -372,7 +372,7 @@ function M.BuildSettings(parent)
 
             -- Frame BG color picker (same row, right of Frame background)
             local bg_picker = addon.CreateColorPicker(p, M.db, "bg_color_"..cat, true, "Frame BG Color", M.defaults, update)
-            bg_picker:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y)
+            bg_picker:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y + 4)
 
             y = y - row
 
@@ -392,11 +392,11 @@ function M.BuildSettings(parent)
 
             -- bar color picker
             local color_pick = addon.CreateColorPicker(p, M.db, "color_"..cat, false, "Bar Color", M.defaults, update)
-            color_pick:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y)
+            color_pick:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y + 4)
 
             -- bar background color picker
             local bar_bg_pick = addon.CreateColorPicker(p, M.db, "bar_bg_color_"..cat, true, "Bar BG Color", M.defaults, update)
-            bar_bg_pick:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y)
+            bar_bg_pick:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y + 4)
 
             if cat ~= "static" then
                 y = y - row
