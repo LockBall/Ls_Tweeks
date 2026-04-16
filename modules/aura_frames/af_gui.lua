@@ -283,7 +283,7 @@ function M.BuildSettings(parent)
             -- move Reset
             local move_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
             move_reset:SetSize(reset_btn_width, 22)
-            move_reset:SetPoint("TOPLEFT", p, "TOPLEFT", x_right, y)
+            move_reset:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y)
             move_reset:SetText("Move Reset")
             move_reset:SetScript("OnClick", function()
                 local dPos = M.defaults.positions[cat]
@@ -303,6 +303,10 @@ function M.BuildSettings(parent)
 
             end)
 
+            -- Growth Direction (top row, right column)
+            local growth_drop = M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update)
+            growth_drop:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y + 8)
+
             y = y - row -- new row
             
             -- Enable Frame
@@ -318,29 +322,22 @@ function M.BuildSettings(parent)
             enable_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
             M.controls[data.show_key] = enable_cb
 
-            -- Growth Direction
-            local growth_drop = M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update)
-            growth_drop:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid - 18, y + 8)
-
-            y = y - row -- new row
-
-            --Frame Background
+            -- Frame background (same row, right of Enable Frame)
             local bg_cb_container, bg_cb, _ = addon.CreateCheckbox(
                 p,
-                "Frame Background",
+                "Frame BackGround",
                 M.db[data.bg_key],
                 function(is_checked)
                     M.db[data.bg_key] = is_checked
                     update()
                 end
             )
-            bg_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+            bg_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y)
             M.controls[data.bg_key] = bg_cb
 
-            -- BG color picker
-            local bg_picker = addon.CreateColorPicker(p, M.db, "bg_color_"..cat, true, "BG Color", M.defaults, update)
-            bg_picker:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y)
-
+            -- Frame BG color picker (same row, right of Frame background)
+            local bg_picker = addon.CreateColorPicker(p, M.db, "bg_color_"..cat, true, "Frame BG Color", M.defaults, update)
+            bg_picker:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y)
 
             y = y - row
 
