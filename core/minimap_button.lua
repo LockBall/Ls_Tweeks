@@ -13,7 +13,7 @@ local CONFIG = {
     msg_right_click = "|cff00ff00LsTweeks:|r Right-click menu not implemented yet.",
 }
 
--- Helper: Toggle main frame visibility
+-- Private Helper: Toggle main frame visibility
 local function toggle_main_frame()
     if addon.main_frame then
         if addon.main_frame:IsShown() then
@@ -52,7 +52,7 @@ addon.data_object = LDB:NewDataObject(CONFIG.name, {
 })
 
 -- ============================================================================
--- HELPERS
+-- PUBLIC API
 function addon.toggle_minimap_button(show)
     Ls_Tweeks_DB.minimap = Ls_Tweeks_DB.minimap or {}
     Ls_Tweeks_DB.minimap.hide = not show

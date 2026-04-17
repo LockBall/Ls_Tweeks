@@ -30,10 +30,10 @@ end
 
 -- Logic for converting seconds into readable text strings
 local function format_time(s)
-    if s >= 3600 then return format("%dh", floor(s/3600)) end
-    if s >= 60 then return format("%dm", floor(s/60)) end
-    if s >= 5 then return format("%ds", floor(s)) end
-    return format("%.1fs", s)
+    if s >= 3600 then return format("%d h", floor(s/3600)) end
+    if s >= 60 then return format("%d m", floor(s/60)) end
+    if s >= 5 then return format("%d s", floor(s)) end
+    return format("%.1f s", s)
 end
 M.format_time = format_time
 
