@@ -15,7 +15,6 @@ local UI_CONFIG = {
     title_offset_x = 20,
     title_offset_y = -20,
     section_offset_y = -20,
-    checkbox_spacing = 30,
 }
 
 -- UI Strings and Labels

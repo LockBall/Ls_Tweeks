@@ -448,19 +448,3 @@ function M.BuildSettings(parent)
     PanelTemplates_UpdateTabs(parent)
 end
 
--- This function is automatically called by the Big Red Button
-function M.on_reset_complete()
-    -- Tell the game to show Blizzard frames again (since DB is now false)
-    M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
-    M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
-
-    -- Physically uncheck the boxes in the menu if it's currently open
-    if M.controls then
-        if M.controls["disable_blizz_buffs"] then
-            M.controls["disable_blizz_buffs"]:SetChecked(M.db.disable_blizz_buffs)
-        end
-        if M.controls["disable_blizz_debuffs"] then
-            M.controls["disable_blizz_debuffs"]:SetChecked(M.db.disable_blizz_debuffs)
-        end
-    end
-end
