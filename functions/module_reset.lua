@@ -27,11 +27,9 @@ function addon.CreateGlobalReset(parent, db, defaults)
     -- LAYOUT: Group
     local GROUP_X           = 0     -- Horizontal offset of the control group from panel center
     local GROUP_Y           = -45   -- Vertical offset of the control group from panel top
-    local GROUP_PAD_X       = 6     -- Horizontal inner padding inside the group border
-    local GROUP_PAD_TOP     = 4     -- Top inner padding inside the group border
-    local GROUP_PAD_BOTTOM  = 4     -- Bottom inner padding inside the group border
-    local GROUP_BORDER_SIZE = 0     -- Border thickness. Set to 0 to hide the group border.
-    local GROUP_BORDER_ALPHA = 0    -- Border opacity. Set to 0 to make the border fully invisible.
+    local GROUP_PAD_X       = 6     -- Horizontal inner padding inside the control group
+    local GROUP_PAD_TOP     = 4     -- Top inner padding inside the control group
+    local GROUP_PAD_BOTTOM  = 4     -- Bottom inner padding inside the control group
 
     -- LAYOUT: Group Elements
     local INPUT_W           = 75    -- Width of the ARM code input box
@@ -68,17 +66,9 @@ function addon.CreateGlobalReset(parent, db, defaults)
     local control_row_height = math.max(INPUT_H, BTN_SIZE)
 
     -- Control group: keeps input, label, and button aligned as one movable unit.
-    local controlGroup = CreateFrame("Frame", nil, container, "BackdropTemplate")
+    local controlGroup = CreateFrame("Frame", nil, container)
     controlGroup:SetSize(1, 1)
     controlGroup:SetPoint("TOP", container, "TOP", GROUP_X, GROUP_Y)
-    controlGroup:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = GROUP_BORDER_SIZE,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    controlGroup:SetBackdropColor(0, 0, 0, 0)
-    controlGroup:SetBackdropBorderColor(0.85, 0.85, 0.85, GROUP_BORDER_ALPHA)
 
     -- INPUT BOX
     local eb = CreateFrame("EditBox", nil, controlGroup, "InputBoxTemplate")
