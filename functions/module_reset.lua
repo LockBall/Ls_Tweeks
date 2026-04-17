@@ -63,7 +63,6 @@ function addon.CreateGlobalReset(parent, db, defaults)
     title:SetTextColor(1, 0.82, 0)
 
     local control_row_width = INPUT_W + BTN_GAP + BTN_SIZE
-    local control_row_height = math.max(INPUT_H, BTN_SIZE)
 
     -- Control group: keeps input, label, and button aligned as one movable unit.
     local controlGroup = CreateFrame("Frame", nil, container)

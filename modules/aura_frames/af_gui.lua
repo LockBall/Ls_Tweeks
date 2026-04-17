@@ -203,6 +203,227 @@ function M.BuildSettings(parent)
         { name = "Debuffs", show_key = "show_debuff", move_key = "move_debuff", timer_key = "timer_debuff", bg_key = "bg_debuff", scale_key = "scale_debuff", spacing_key = "spacing_debuff", is_debuff = true }
     }
 
+    local function build_general_tab(p)
+        -- LAYOUT CONFIG
+        local x_left = 16
+        local y = -16
+        local row = 38
+        local slider_row = 60
+
+        -- ROW: Blizzard Buff Toggle
+        local blizz_buff_container, blizz_buff, _ = addon.CreateCheckbox(
+            p,
+            "Disable Blizzard Buff Frame",
+            M.db.disable_blizz_buffs,
+            function(is_checked)
+                M.db.disable_blizz_buffs = is_checked
+                M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
+            end
+        )
+        blizz_buff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+        M.controls["disable_blizz_buffs"] = blizz_buff
+
+        y = y - row -- next row
+
+        -- Blizzard Debuff Toggle
+        local blizz_debuff_container, blizz_debuff, _ = addon.CreateCheckbox(
+            p,
+            "Disable Blizzard Debuff Frame",
+            M.db.disable_blizz_debuffs,
+            function(is_checked)
+                M.db.disable_blizz_debuffs = is_checked
+                M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+            end
+        )
+        blizz_debuff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+        M.controls["disable_blizz_debuffs"] = blizz_debuff
+
+        y = y - slider_row -- next row
+
+        -- Threshold Slider
+        local threshold = M.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", M.defaults, function()
+            for k, v in pairs(M.frames) do
+                -- Corrected to sub(6) to handle keys like show_static, show_short, etc.
+                local cat = k:sub(6)
+                M.update_auras(v, k, "move_"..cat, "timer_"..cat, "bg_"..cat, "scale_"..cat, "spacing_"..cat, k == "show_debuff" and "HARMFUL" or "HELPFUL")
+            end
+        end)
+        threshold:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+
+        y = y - threshold:GetHeight() - 22 -- next row below slider
+
+        -- Global Reset Button
+        local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
+        resetPanel:SetPoint("TOP", p, "TOP", 0, y)
+        y = y - resetPanel:GetHeight() - row
+    end
+
+    local function build_category_tab(p, data)
+        local cat = data.show_key:sub(6)
+        local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
+        local function update() -- only runs once when user opens options
+            M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter)
+        end
+
+        -- GRID CONFIGURATION
+        local grid = {
+            left = 20,
+            mid = 180,
+            far = 375,
+            y = -20,
+            row = 42,
+            slider_row = 68,
+            reset_btn_width = 110,
+            dropdown_y = 8,
+            picker_y = 4,
+        }
+
+        local function place(control, column, y_offset)
+            local x = grid[column]
+            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, grid.y + (y_offset or 0))
+        end
+
+        local function next_row()
+            grid.y = grid.y - grid.row
+        end
+
+        local function next_slider_row()
+            grid.y = grid.y - grid.slider_row
+        end
+
+        -- first ROW
+
+        -- move mode
+        local move_cb_container, move_cb, _ = addon.CreateCheckbox(
+            p,
+            "Move Mode",
+            M.db[data.move_key],
+            function(is_checked)
+                M.db[data.move_key] = is_checked
+                update()
+            end
+        )
+        place(move_cb_container, "left")
+        M.controls[data.move_key] = move_cb
+
+        -- move Reset
+        local move_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+        move_reset:SetSize(grid.reset_btn_width, 22)
+        place(move_reset, "mid")
+        move_reset:SetText("Move Reset")
+        move_reset:SetScript("OnClick", function()
+            local dPos = M.defaults.positions[cat]
+            local dMove = M.defaults[data.move_key]
+            M.db.positions[cat].point = dPos.point
+            M.db.positions[cat].x = dPos.x
+            M.db.positions[cat].y = dPos.y
+            M.db[data.move_key] = dMove
+            move_cb:SetChecked(dMove)
+            local f = M.frames[data.show_key]
+
+            if f then
+                f:ClearAllPoints()
+                f:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+                update()
+            end
+        end)
+
+        -- Growth Direction (top row, right column)
+        local growth_drop = M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update)
+        place(growth_drop, "far", grid.dropdown_y)
+
+        next_row() -- new row
+
+        -- Enable Frame
+        local enable_cb_container, enable_cb, _ = addon.CreateCheckbox(
+            p,
+            "Enable Frame",
+            M.db[data.show_key],
+            function(is_checked)
+                M.db[data.show_key] = is_checked
+                update()
+            end
+        )
+        place(enable_cb_container, "left")
+        M.controls[data.show_key] = enable_cb
+
+        -- Frame background (same row, right of Enable Frame)
+        local bg_cb_container, bg_cb, _ = addon.CreateCheckbox(
+            p,
+            "Frame BackGround",
+            M.db[data.bg_key],
+            function(is_checked)
+                M.db[data.bg_key] = is_checked
+                update()
+            end
+        )
+        place(bg_cb_container, "mid")
+        M.controls[data.bg_key] = bg_cb
+
+        -- Frame BG color picker (same row, right of Frame background)
+        local bg_picker = addon.CreateColorPicker(p, M.db, "bg_color_"..cat, true, "Frame BG Color", M.defaults, update)
+        place(bg_picker, "far", grid.picker_y)
+
+        next_row()
+
+        -- ROW
+        -- bar mode
+        local bar_mode_cb_container, bar_mode_cb, _ = addon.CreateCheckbox(
+            p,
+            "Bar Mode",
+            M.db["use_bars_"..cat],
+            function(is_checked)
+                M.db["use_bars_"..cat] = is_checked
+                update()
+            end
+        )
+        place(bar_mode_cb_container, "left")
+        M.controls["use_bars_"..cat] = bar_mode_cb
+
+        -- bar color picker
+        local color_pick = addon.CreateColorPicker(p, M.db, "color_"..cat, false, "Bar Color", M.defaults, update)
+        place(color_pick, "mid", grid.picker_y)
+
+        -- bar background color picker
+        local bar_bg_pick = addon.CreateColorPicker(p, M.db, "bar_bg_color_"..cat, true, "Bar BG Color", M.defaults, update)
+        place(bar_bg_pick, "far", grid.picker_y)
+
+        if cat ~= "static" then
+            next_row()
+
+            -- Fourth row: timer text visibility
+            local timer_cb_container, timer_cb, _ = addon.CreateCheckbox(
+                p,
+                "Show Time Remaining",
+                M.db[data.timer_key],
+                function(is_checked)
+                    M.db[data.timer_key] = is_checked
+                    update()
+                end
+            )
+            place(timer_cb_container, "left")
+            M.controls[data.timer_key] = timer_cb
+        end
+
+        -- SLIDERS SECTION
+        next_slider_row()
+
+        local scale_slider = M.CreateSliderWithBox(addon_name..cat.."Scale", p, "Scale", 0.5, 2.5, 0.01, data.scale_key, M.defaults, update)
+        place(scale_slider, "left")
+
+        next_slider_row()
+
+        local space_slider = M.CreateSliderWithBox(addon_name..cat.."Spacing", p, "Spacing", 0, 40, 0.1, data.spacing_key, M.defaults, update)
+        place(space_slider, "left")
+
+        next_slider_row()
+
+        local pool_slider = M.CreateSliderWithBox(addon_name..cat.."PoolSlider", p, "Max Icons (Requires /reload)", 5, 100, 1, "max_icons_"..cat, M.defaults, function()
+            print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
+        end)
+        place(pool_slider, "left")
+    end
+
     for i, data in ipairs(tab_data) do
         local tab = CreateFrame("Button", addon_name.."Tab"..i, parent, "PanelTabButtonTemplate")
         tab:SetText(data.name)
@@ -226,210 +447,10 @@ function M.BuildSettings(parent)
         p:Hide()
 
         if data.is_general then
-
-            -- LAYOUT CONFIG
-            local x_left = 16
-            local y = -16        
-            local row = 38       
-            local slider_row = 60
-
-            -- ROW: Blizzard Buff Toggle
-            local blizz_buff_container, blizz_buff, _ = addon.CreateCheckbox(
-                p,
-                "Disable Blizzard Buff Frame",
-                M.db.disable_blizz_buffs,
-                function(is_checked)
-                    M.db.disable_blizz_buffs = is_checked
-                    M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
-                end
-            )
-            blizz_buff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            M.controls["disable_blizz_buffs"] = blizz_buff
-
-            y = y - row -- next row
-
-            -- Blizzard Debuff Toggle
-            local blizz_debuff_container, blizz_debuff, _ = addon.CreateCheckbox(
-                p,
-                "Disable Blizzard Debuff Frame",
-                M.db.disable_blizz_debuffs,
-                function(is_checked)
-                    M.db.disable_blizz_debuffs = is_checked
-                    M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
-                end
-            )
-            blizz_debuff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            M.controls["disable_blizz_debuffs"] = blizz_debuff
-
-            y = y - slider_row -- next row
-
-            -- Threshold Slider
-            local threshold = M.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, "short_threshold", M.defaults, function()
-                for k, v in pairs(M.frames) do 
-                    -- Corrected to sub(6) to handle keys like show_static, show_short, etc.
-                    local cat = k:sub(6) 
-                    M.update_auras(v, k, "move_"..cat, "timer_"..cat, "bg_"..cat, "scale_"..cat, "spacing_"..cat, k == "show_debuff" and "HARMFUL" or "HELPFUL") 
-                end
-            end)
-            threshold:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-
-            y = y - threshold:GetHeight() - 22 -- next row below slider
-
-            -- Global Reset Button
-            local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
-            resetPanel:SetPoint("TOP", p, "TOP", 0, y)
-            y = y - resetPanel:GetHeight() - row
+            build_general_tab(p)
 
         else -- not in general
-
-            local cat = data.show_key:sub(6)
-            local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
-            local function update() -- only runs once when user opens options
-                M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter) 
-            end
-
-            -- GRID CONFIGURATION
-            local x_left = 20 -- left edge of left column
-            local x_mid = x_left + 160 -- color pickers
-            local x_far = x_mid + 195 -- bar bg color picker
-            local x_right = x_mid + 140 -- reset buttons
-            local y = -20 -- row spacing
-            local row = 42 -- row height
-            local slider_row = 68
-            local reset_btn_width = 110
-
-            -- first ROW
-            
-            -- move mode
-            local move_cb_container, move_cb, _ = addon.CreateCheckbox(
-                p,
-                "Move Mode",
-                M.db[data.move_key],
-                function(is_checked)
-                    M.db[data.move_key] = is_checked
-                    update()
-                end
-            )
-            move_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            M.controls[data.move_key] = move_cb
-
-            -- move Reset
-            local move_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
-            move_reset:SetSize(reset_btn_width, 22)
-            move_reset:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y)
-            move_reset:SetText("Move Reset")
-            move_reset:SetScript("OnClick", function()
-                local dPos = M.defaults.positions[cat]
-                local dMove = M.defaults[data.move_key]
-                M.db.positions[cat].point = dPos.point
-                M.db.positions[cat].x = dPos.x
-                M.db.positions[cat].y = dPos.y
-                M.db[data.move_key] = dMove
-                move_cb:SetChecked(dMove)
-                local f = M.frames[data.show_key]
-
-                if f then
-                    f:ClearAllPoints()
-                    f:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
-                    update()
-                end
-
-            end)
-
-            -- Growth Direction (top row, right column)
-            local growth_drop = M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update)
-            growth_drop:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y + 8)
-
-            y = y - row -- new row
-            
-            -- Enable Frame
-            local enable_cb_container, enable_cb, _ = addon.CreateCheckbox(
-                p,
-                "Enable Frame",
-                M.db[data.show_key],
-                function(is_checked)
-                    M.db[data.show_key] = is_checked
-                    update()
-                end
-            )
-            enable_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            M.controls[data.show_key] = enable_cb
-
-            -- Frame background (same row, right of Enable Frame)
-            local bg_cb_container, bg_cb, _ = addon.CreateCheckbox(
-                p,
-                "Frame BackGround",
-                M.db[data.bg_key],
-                function(is_checked)
-                    M.db[data.bg_key] = is_checked
-                    update()
-                end
-            )
-            bg_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y)
-            M.controls[data.bg_key] = bg_cb
-
-            -- Frame BG color picker (same row, right of Frame background)
-            local bg_picker = addon.CreateColorPicker(p, M.db, "bg_color_"..cat, true, "Frame BG Color", M.defaults, update)
-            bg_picker:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y + 4)
-
-            y = y - row
-
-            -- ROW
-              -- bar mode
-            local bar_mode_cb_container, bar_mode_cb, _ = addon.CreateCheckbox(
-                p,
-                "Bar Mode",
-                M.db["use_bars_"..cat],
-                function(is_checked)
-                    M.db["use_bars_"..cat] = is_checked
-                    update()
-                end
-            )
-            bar_mode_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-            M.controls["use_bars_"..cat] = bar_mode_cb
-
-            -- bar color picker
-            local color_pick = addon.CreateColorPicker(p, M.db, "color_"..cat, false, "Bar Color", M.defaults, update)
-            color_pick:SetPoint("TOPLEFT", p, "TOPLEFT", x_mid, y + 4)
-
-            -- bar background color picker
-            local bar_bg_pick = addon.CreateColorPicker(p, M.db, "bar_bg_color_"..cat, true, "Bar BG Color", M.defaults, update)
-            bar_bg_pick:SetPoint("TOPLEFT", p, "TOPLEFT", x_far, y + 4)
-
-            if cat ~= "static" then
-                y = y - row
-
-                -- Fourth row: timer text visibility
-                local timer_cb_container, timer_cb, _ = addon.CreateCheckbox(
-                    p,
-                    "Show Time Remaining",
-                    M.db[data.timer_key],
-                    function(is_checked)
-                        M.db[data.timer_key] = is_checked
-                        update()
-                    end
-                )
-                timer_cb_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-                M.controls[data.timer_key] = timer_cb
-            end
-
-            -- SLIDERS SECTION
-            y = y - slider_row
-
-            local scale_slider = M.CreateSliderWithBox(addon_name..cat.."Scale", p, "Scale", 0.5, 2.5, 0.01, data.scale_key, M.defaults, update)
-            scale_slider:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-
-            y = y - slider_row
-
-            local space_slider = M.CreateSliderWithBox(addon_name..cat.."Spacing", p, "Spacing", 0, 40, 0.1, data.spacing_key, M.defaults, update)
-            space_slider:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
-
-            y = y - slider_row
-
-            local pool_slider = M.CreateSliderWithBox(addon_name..cat.."PoolSlider", p, "Max Icons (Requires /reload)", 5, 100, 1, "max_icons_"..cat, M.defaults, function()
-                print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
-            end)
-            pool_slider:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+            build_category_tab(p, data)
         end
 
         tabs[i], panels[i] = tab, p
