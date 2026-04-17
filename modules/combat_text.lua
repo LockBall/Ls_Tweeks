@@ -60,7 +60,7 @@ local function get_hit_indicator()
 end
 
 -- Set up hook only once for efficiency
--- Simplified: always hide when OnShow fires (DB is checked before hooking)
+-- OnShow mirrors the current toggle state; this avoids stale alpha after frame re-shows.
 local function setup_on_show_hook(frame)
     if hookApplied or not frame then return end
     

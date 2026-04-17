@@ -261,7 +261,7 @@ function M.BuildSettings(parent)
     local function build_category_tab(p, data)
         local cat = data.show_key:sub(6)
         local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
-        local function update() -- only runs once when user opens options
+        local function update() -- refreshes current category frame preview
             M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter)
         end
 
@@ -335,7 +335,7 @@ function M.BuildSettings(parent)
         -- first ROW
 
         -- move mode
-        local move_cb_container, move_cb = create_bound_checkbox("Move Mode", data.move_key, "left")
+        local _, move_cb = create_bound_checkbox("Move Mode", data.move_key, "left")
 
         -- move Reset
         local move_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
@@ -360,52 +360,51 @@ function M.BuildSettings(parent)
         end)
 
         -- Growth Direction (top row, right column)
-        local growth_drop = M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update)
-        place(growth_drop, "far", grid.dropdown_y)
+        place(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), "far", grid.dropdown_y)
 
         next_row() -- new row
 
         -- Enable Frame
-        local enable_cb_container, enable_cb = create_bound_checkbox("Enable Frame", data.show_key, "left")
+        create_bound_checkbox("Enable Frame", data.show_key, "left")
 
         -- Frame background (same row, right of Enable Frame)
-        local bg_cb_container, bg_cb = create_bound_checkbox("Frame BackGround", data.bg_key, "mid")
+        create_bound_checkbox("Frame Background", data.bg_key, "mid")
 
         -- Frame BG color picker (same row, right of Frame background)
-        local bg_picker = create_bound_color_picker("bg_color_"..cat, true, "Frame BG Color", "far", grid.picker_y)
+        create_bound_color_picker("bg_color_"..cat, true, "Frame BG Color", "far", grid.picker_y)
 
         next_row()
 
         -- ROW
         -- bar mode
         local bar_mode_key = "use_bars_"..cat
-        local bar_mode_cb_container, bar_mode_cb = create_bound_checkbox("Bar Mode", bar_mode_key, "left")
+        create_bound_checkbox("Bar Mode", bar_mode_key, "left")
 
         -- bar color picker
-        local color_pick = create_bound_color_picker("color_"..cat, false, "Bar Color", "mid", grid.picker_y)
+        create_bound_color_picker("color_"..cat, false, "Bar Color", "mid", grid.picker_y)
 
         -- bar background color picker
-        local bar_bg_pick = create_bound_color_picker("bar_bg_color_"..cat, true, "Bar BG Color", "far", grid.picker_y)
+        create_bound_color_picker("bar_bg_color_"..cat, true, "Bar BG Color", "far", grid.picker_y)
 
         if cat ~= "static" then
             next_row()
 
             -- Fourth row: timer text visibility
-            local timer_cb_container, timer_cb = create_bound_checkbox("Show Time Remaining", data.timer_key, "left")
+            create_bound_checkbox("Show Time Remaining", data.timer_key, "left")
         end
 
         -- SLIDERS SECTION
         next_slider_row()
 
-        local scale_slider = create_bound_slider("Scale", "Scale", 0.5, 2.5, 0.01, data.scale_key)
+        create_bound_slider("Scale", "Scale", 0.5, 2.5, 0.01, data.scale_key)
 
         next_slider_row()
 
-        local space_slider = create_bound_slider("Spacing", "Spacing", 0, 40, 0.1, data.spacing_key)
+        create_bound_slider("Spacing", "Spacing", 0, 40, 0.1, data.spacing_key)
 
         next_slider_row()
 
-        local pool_slider = create_bound_slider("PoolSlider", "Max Icons (Requires /reload)", 5, 100, 1, "max_icons_"..cat, function()
+        create_bound_slider("PoolSlider", "Max Icons (Requires /reload)", 5, 100, 1, "max_icons_"..cat, function()
             print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
         end)
     end
