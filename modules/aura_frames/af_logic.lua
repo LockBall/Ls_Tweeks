@@ -102,6 +102,14 @@ function M.tick_visible_icons(now)
                 elseif obj:IsShown() and obj.is_test_preview then
                     M.update_test_preview_display(obj, "show_" .. frame.category, short_threshold, show_timer_text, use_bars, M.format_time, now)
                 elseif obj:IsShown() and obj.aura_index then
+                    -- Enforce time_text visibility from the live setting each tick.
+                    -- setup_layout is blocked in combat lockdown, so this is the only
+                    -- reliable path for mid-combat Show Time Remaining toggles to take effect.
+                    if show_timer_text then
+                        obj.time_text:Show()
+                    else
+                        obj.time_text:Hide()
+                    end
                     local remaining
                     local live_duration = C_UnitAuras.GetAuraDuration("player", obj.aura_index)
                     if live_duration then

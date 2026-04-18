@@ -96,9 +96,10 @@ function M.update_test_preview_display(obj, show_key, short_threshold, show_time
     end
 
     if show_timer_text and duration > 0 then
+        obj.time_text:Show()
         obj.time_text:SetText(format_time(remaining))
     else
-        obj.time_text:SetText("")
+        obj.time_text:Hide()
     end
 
     if use_bars and obj.bar and obj.bar:IsShown() then
