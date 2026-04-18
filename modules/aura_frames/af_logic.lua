@@ -165,6 +165,38 @@ function M.tick_visible_icons(now)
     end
 end
 
+-- BLIZZARD Buff & Debuff FRAME TOGGLES
+local function set_blizz_frame_state(frame, hide)
+    if not frame then return end
+
+    if hide then
+        frame:Hide()
+        frame:UnregisterAllEvents()
+    else -- Re-register the essential events
+        frame:RegisterEvent("UNIT_AURA")
+        frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+        frame:Show()
+
+        if frame == BuffFrame and frame.UpdateAuras then
+            frame:UpdateAuras()
+        elseif frame == DebuffFrame and frame.UpdateAuras then
+            frame:UpdateAuras()
+        end
+
+        if frame.UpdateLayout then
+            frame:UpdateLayout()
+        end
+    end
+end
+
+function M.toggle_blizz_buffs(hide)
+    set_blizz_frame_state(BuffFrame, hide)
+end
+
+function M.toggle_blizz_debuffs(hide)
+    set_blizz_frame_state(DebuffFrame, hide)
+end
+
 -- ============================================================================
 -- MAP-BASED AURA TRACKING HELPERS
 

@@ -378,3 +378,18 @@ function M.BuildSettings(parent)
     PanelTemplates_UpdateTabs(parent)
 end
 
+-- Sync only GUI control states from DB (used after reset flows).
+function M.sync_general_controls_from_db()
+    if not M.controls or not M.db then return end
+
+    local buffs = M.controls["disable_blizz_buffs"]
+    if buffs and buffs.SetChecked then
+        buffs:SetChecked(M.db.disable_blizz_buffs)
+    end
+
+    local debuffs = M.controls["disable_blizz_debuffs"]
+    if debuffs and debuffs.SetChecked then
+        debuffs:SetChecked(M.db.disable_blizz_debuffs)
+    end
+end
+

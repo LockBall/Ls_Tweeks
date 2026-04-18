@@ -5,38 +5,6 @@ local M = addon.aura_frames
 local MAX_POOL_SIZE = 40 -- Default pre-allocation count
 local format = string.format
 
--- BLIZZARD Buff & Debuff FRAME TOGGLES
-local function set_blizz_frame_state(frame, hide)
-    if not frame then return end
-    
-    if hide then
-        frame:Hide()
-        frame:UnregisterAllEvents()
-    else -- Re-register the essential events
-        frame:RegisterEvent("UNIT_AURA")
-        frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-        frame:Show()
-
-        if frame == BuffFrame and frame.UpdateAuras then  -- Trigger Blizzard internal refresh logic to rebuild the icon list
-            frame:UpdateAuras()
-        elseif frame == DebuffFrame and frame.UpdateAuras then
-            frame:UpdateAuras()
-        end
- 
-        if frame.UpdateLayout then
-            frame:UpdateLayout()
-        end
-    end
-end
-
-function M.toggle_blizz_buffs(hide)
-    set_blizz_frame_state(BuffFrame, hide)
-end
-
-function M.toggle_blizz_debuffs(hide)
-    set_blizz_frame_state(DebuffFrame, hide)
-end
-
 -- safely copy default tables into saved variables without reference issues
 local function deep_copy(src, dest)
     for k, v in pairs(src) do
@@ -324,10 +292,8 @@ end)
 function M.on_reset_complete()
     M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
     M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
-    
-    -- Synchronize the state of any open GUI controls
-    if M.controls then
-        if M.controls["disable_blizz_buffs"] then M.controls["disable_blizz_buffs"]:SetChecked(M.db.disable_blizz_buffs) end
-        if M.controls["disable_blizz_debuffs"] then M.controls["disable_blizz_debuffs"]:SetChecked(M.db.disable_blizz_debuffs) end
+
+    if M.sync_general_controls_from_db then
+        M.sync_general_controls_from_db()
     end
 end
