@@ -1110,6 +1110,49 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
     }
 end
 
+local function set_height_for_growth(self, new_height, growth)
+    if not self then return end
+
+    local old_height = self:GetHeight()
+    if old_height == new_height then return end
+
+    local left = self:GetLeft()
+    local right = self:GetRight()
+    local top = self:GetTop()
+    local bottom = self:GetBottom()
+
+    self:SetHeight(new_height)
+
+    if not left or not top or not bottom or not right then
+        return
+    end
+
+    local parent_w = UIParent:GetWidth()
+    local parent_h = UIParent:GetHeight()
+    local point, x, y
+
+    if growth == "UP" then
+        point = "BOTTOMLEFT"
+        x = left
+        y = bottom
+    elseif growth == "LEFT" then
+        point = "TOPRIGHT"
+        x = right - parent_w
+        y = top - parent_h
+    else
+        point = "TOPLEFT"
+        x = left
+        y = top - parent_h
+    end
+
+    self:ClearAllPoints()
+    self:SetPoint(point, UIParent, point, x, y)
+
+    if M.db and M.db.positions and self.category then
+        M.db.positions[self.category] = { point = point, x = x, y = y }
+    end
+end
+
 -- ============================================================================
 -- AURA SCANNING AND RENDERING
 
@@ -1162,7 +1205,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     end
 
     if is_moving and not db[show_key] and not preview_enabled then
-        self:SetHeight(44)
+        set_height_for_growth(self, 44, growth)
         self:Show()
         return
     end
@@ -1214,7 +1257,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 
     if db[show_key] or preview_enabled then
         self:Show()
-        self:SetHeight(new_height)
+        set_height_for_growth(self, new_height, growth)
     elseif not is_moving then
         self:Hide()
     end
