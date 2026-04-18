@@ -1,6 +1,7 @@
  # OS junk
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # Editor junk
 *.swp
@@ -9,9 +10,24 @@ Thumbs.db
 *.tmp
 *~
 *_backup.*
+.idea/
+.vs/
+*.code-workspace
 
 # VS Code settings
 .vscode/
+
+# Local Python environment / cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
 
 # Lua compiler output
 luac.out

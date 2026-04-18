@@ -6,105 +6,63 @@ local M = addon.aura_frames
 
 -- GUI COMPONENT BUILDERS
 
--- Shared click-blocker: sits behind all dropdown popups and dismisses the open one
--- when the user clicks anywhere outside it. One instance, reused by all dropdowns.
-local _dropdown_blocker = CreateFrame("Frame", "LsTweeksDropdownBlocker", UIParent)
-_dropdown_blocker:SetAllPoints(UIParent)
-_dropdown_blocker:SetFrameStrata("FULLSCREEN")
-_dropdown_blocker:SetFrameLevel(98)
-_dropdown_blocker:EnableMouse(true)
-_dropdown_blocker:Hide()
-_dropdown_blocker._active = nil
-_dropdown_blocker:SetScript("OnMouseDown", function(self)
-    if self._active then self._active:Hide() end
-    self._active = nil
-    self:Hide()
-end)
+-- Shared dropdown mechanics live in functions/dropdown.lua via addon.CreateDropdown.
 
-local function _show_dropdown(popup, btn)
-    if _dropdown_blocker._active and _dropdown_blocker._active ~= popup then
-        _dropdown_blocker._active:Hide()
+function M.CreateListDropdown(name, parent, labelText, options, get_value, on_select)
+    local function get_option_text(option)
+        return option.text or tostring(option.value or "")
     end
-    popup:ClearAllPoints()
-    popup:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
-    popup:Show()
-    _dropdown_blocker._active = popup
-    _dropdown_blocker:Show()
+
+    local function apply_button_style(btn_text, option)
+        if not btn_text then return end
+        if option.font_path then
+            btn_text:SetFont(option.font_path, option.font_size or 9, option.font_flags or "")
+        else
+            btn_text:SetFontObject(GameFontHighlightSmall)
+        end
+    end
+
+    local function apply_row_style(row_text, option)
+        if option.font_path then
+            row_text:SetFont(option.font_path, option.font_size or 9, option.font_flags or "")
+        end
+    end
+
+    return M._CreateDropdown(name, parent, labelText, options, {
+        width = 180,
+        get_value = get_value,
+        on_select = function(value)
+            if on_select then on_select(value) end
+        end,
+        get_option_text = get_option_text,
+        apply_button_style = apply_button_style,
+        apply_row_style = apply_row_style,
+    })
 end
 
-local function _hide_dropdown(popup)
-    popup:Hide()
-    if _dropdown_blocker._active == popup then
-        _dropdown_blocker._active = nil
-        _dropdown_blocker:Hide()
-    end
+function M._CreateDropdown(name, parent, labelText, options, cfg)
+    return addon.CreateDropdown(name, parent, labelText, options, cfg)
 end
 
 -- growth direction dropdown
 -- Replaces the deprecated UIDropDownMenu API with a custom popup list.
 function M.CreateDirectionDropdown(name, parent, labelText, db_key, callback)
-    local options = { "RIGHT", "LEFT", "DOWN", "UP" }
-    local current = M.db[db_key] or "DOWN"
-
-    -- Anchor container (caller calls :SetPoint on this)
-    local container = CreateFrame("Frame", name, parent)
-    container:SetSize(106, 22)
-
-    local label = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetPoint("BOTTOM", container, "TOP", 0, 2)
-    label:SetText(labelText)
-
-    -- Main toggle button
-    local btn = CreateFrame("Button", name.."Btn", container, "UIPanelButtonTemplate")
-    btn:SetAllPoints(container)
-    btn:SetText(current)
-
-    -- Popup list
-    local row_h = 22
-    local popup = CreateFrame("Frame", name.."Popup", UIParent, "BackdropTemplate")
-    popup:SetSize(106, #options * row_h + 4)
-    popup:SetFrameStrata("FULLSCREEN_DIALOG")
-    popup:SetFrameLevel(100)
-    popup:SetBackdrop({
-        bgFile   = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
-    })
-    popup:SetBackdropColor(0.08, 0.08, 0.08, 0.96)
-    popup:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
-    popup:Hide()
-
-    for i, dir in ipairs(options) do
-        local row = CreateFrame("Button", nil, popup)
-        row:SetSize(102, row_h)
-        row:SetPoint("TOPLEFT", popup, "TOPLEFT", 2, -(2 + (i - 1) * row_h))
-
-        local hl = row:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetAllPoints()
-        hl:SetColorTexture(1, 1, 1, 0.12)
-
-        local txt = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        txt:SetPoint("LEFT", row, "LEFT", 8, 0)
-        txt:SetText(dir)
-
-        row:SetScript("OnClick", function()
-            M.db[db_key] = dir
-            btn:SetText(dir)
-            _hide_dropdown(popup)
-            callback()
-        end)
+    local dir_values = { "RIGHT", "LEFT", "DOWN", "UP" }
+    local options = {}
+    for _, dir in ipairs(dir_values) do
+        options[#options + 1] = { value = dir, text = dir }
     end
 
-    btn:SetScript("OnClick", function()
-        if popup:IsShown() then
-            _hide_dropdown(popup)
-        else
-            _show_dropdown(popup, btn)
-        end
-    end)
-
-    return container
+    return M._CreateDropdown(name, parent, labelText, options, {
+        width = 106,
+        get_value = function()
+            return M.db[db_key] or "DOWN"
+        end,
+        on_select = function(value)
+            M.db[db_key] = value
+            if callback then callback() end
+        end,
+    })
 end
 
 -- tabs settings controls
@@ -123,13 +81,37 @@ function M.BuildSettings(parent)
     }
 
     local function build_general_tab(p)
-        -- LAYOUT CONFIG
-        local x_left = 16
-        local y = -16
-        local row = 38
-        local slider_row = 60
+        local function refresh_all_category_frames()
+            for _, frame in pairs(M.frames) do
+                if frame and frame.update_params then
+                    local params = frame.update_params
+                    M.update_auras(frame, params.show_key, params.move_key, params.timer_key, params.bg_key, params.scale_key, params.spacing_key, params.filter)
+                end
+            end
+        end
 
-        -- ROW: Blizzard Buff Toggle
+        local grid = {
+            left = 16,
+            right = 330,
+            y = -16,
+            row = 42,
+            slider_row = 64,
+        }
+
+        local function place(control, column, y_offset)
+            local x = grid[column]
+            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, grid.y + (y_offset or 0))
+        end
+
+        local function next_row()
+            grid.y = grid.y - grid.row
+        end
+
+        local function next_slider_row()
+            grid.y = grid.y - grid.slider_row
+        end
+
+        -- Row 1
         local blizz_buff_container, blizz_buff, _ = addon.CreateCheckbox(
             p,
             "Disable Blizzard Buff Frame",
@@ -139,12 +121,43 @@ function M.BuildSettings(parent)
                 M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
             end
         )
-        blizz_buff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+        place(blizz_buff_container, "left")
         M.controls["disable_blizz_buffs"] = blizz_buff
 
-        y = y - row -- next row
+        local font_options = {}
+        local defs = M.get_number_font_options and M.get_number_font_options() or {}
+        for _, def in ipairs(defs) do
+            font_options[#font_options + 1] = {
+                value = def.key,
+                text = def.label,
+                font_path = def.path,
+                font_size = def.size,
+                font_flags = def.flags,
+            }
+        end
 
-        -- Blizzard Debuff Toggle
+        local number_font = M.CreateListDropdown(
+            addon_name.."NumberFont",
+            p,
+            "Number Font",
+            font_options,
+            function()
+                return M.db.timer_number_font or "inconsolata"
+            end,
+            function(value)
+                M.db.timer_number_font = value
+                if M.apply_number_font_to_all then
+                    M.apply_number_font_to_all()
+                end
+                refresh_all_category_frames()
+            end
+        )
+        place(number_font, "right")
+        M.controls["timer_number_font_dropdown"] = number_font
+
+        next_row()
+
+        -- Row 2
         local blizz_debuff_container, blizz_debuff, _ = addon.CreateCheckbox(
             p,
             "Disable Blizzard Debuff Frame",
@@ -154,12 +167,54 @@ function M.BuildSettings(parent)
                 M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
             end
         )
-        blizz_debuff_container:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+        place(blizz_debuff_container, "left")
         M.controls["disable_blizz_debuffs"] = blizz_debuff
 
-        y = y - slider_row -- next row
+        local size_options = {}
+        for i = 7, 14 do
+            size_options[#size_options + 1] = { value = i, text = tostring(i) }
+        end
 
-        -- Threshold Slider — debounced so dragging doesn't trigger a full scan per step.
+        local number_font_size = M.CreateListDropdown(
+            addon_name.."NumberFontSize",
+            p,
+            "Number Font Size",
+            size_options,
+            function()
+                return tonumber(M.db.timer_number_font_size) or 9
+            end,
+            function(value)
+                M.db.timer_number_font_size = tonumber(value) or 9
+                if M.apply_number_font_to_all then
+                    M.apply_number_font_to_all()
+                end
+                refresh_all_category_frames()
+            end
+        )
+        place(number_font_size, "right")
+        M.controls["timer_number_font_size_dropdown"] = number_font_size
+
+        next_slider_row()
+
+        -- Row 3
+        local number_font_bold_container, number_font_bold_cb, _ = addon.CreateCheckbox(
+            p,
+            "Bold Numbers",
+            M.db.timer_number_font_bold,
+            function(is_checked)
+                M.db.timer_number_font_bold = is_checked
+                if M.apply_number_font_to_all then
+                    M.apply_number_font_to_all()
+                end
+                refresh_all_category_frames()
+            end
+        )
+        place(number_font_bold_container, "right")
+        M.controls["timer_number_font_bold"] = number_font_bold_cb
+
+        next_row()
+
+        -- Row 4 (threshold)
         local threshold_debounce = nil
         local threshold = addon.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, M.db, "short_threshold", M.defaults, function()
             if threshold_debounce then threshold_debounce:Cancel() end
@@ -171,14 +226,13 @@ function M.BuildSettings(parent)
                 end
             end)
         end)
-        threshold:SetPoint("TOPLEFT", p, "TOPLEFT", x_left, y)
+        place(threshold, "left")
 
-        y = y - threshold:GetHeight() - 22 -- next row below slider
+        next_slider_row()
 
-        -- Global Reset Button
+        -- Keep reset panel outside the grid-managed main area.
         local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
-        resetPanel:SetPoint("TOP", p, "TOP", 0, y)
-        y = y - resetPanel:GetHeight() - row
+        resetPanel:SetPoint("TOP", p, "TOP", 0, grid.y)
     end
 
     local function build_category_tab(p, data)
@@ -394,6 +448,21 @@ function M.sync_general_controls_from_db()
     local debuffs = M.controls["disable_blizz_debuffs"]
     if debuffs and debuffs.SetChecked then
         debuffs:SetChecked(M.db.disable_blizz_debuffs)
+    end
+
+    local font_dropdown = M.controls["timer_number_font_dropdown"]
+    if font_dropdown and font_dropdown.SetValue then
+        font_dropdown:SetValue(M.db.timer_number_font or "inconsolata")
+    end
+
+    local font_size_dropdown = M.controls["timer_number_font_size_dropdown"]
+    if font_size_dropdown and font_size_dropdown.SetValue then
+        font_size_dropdown:SetValue(tonumber(M.db.timer_number_font_size) or 9)
+    end
+
+    local bold_cb = M.controls["timer_number_font_bold"]
+    if bold_cb and bold_cb.SetChecked then
+        bold_cb:SetChecked(M.db.timer_number_font_bold)
     end
 end
 

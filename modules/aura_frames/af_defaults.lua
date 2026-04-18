@@ -31,6 +31,9 @@ M.defaults = {
     disable_blizz_buffs = false,
     disable_blizz_debuffs = false,
     short_threshold = 60,
+    timer_number_font = "inconsolata",
+    timer_number_font_size = 9,
+    timer_number_font_bold = false,
     
     -- STATIC
     show_static     = false,

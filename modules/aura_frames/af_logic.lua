@@ -1017,6 +1017,8 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
     local spacing = db[spacing_key] or 6
     local growth = db["growth_"..category] or "DOWN"
     local show_timer_text = db["timer_"..category]
+    local timer_font_size = tonumber(db.timer_number_font_size) or 9
+    local bar_timer_slot_width = math_max(26, math_ceil(timer_font_size * 3.0))
 
     local icon_size = 32
     local icon_footprint = icon_size + spacing
@@ -1050,10 +1052,17 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
 
             obj.name_text:ClearAllPoints()
             obj.name_text:SetPoint("LEFT", obj.bar, "LEFT", 22, 0)
+            if show_timer_text then
+                obj.name_text:SetPoint("RIGHT", obj.time_text, "LEFT", -6, 0)
+            else
+                obj.name_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
+            end
             obj.name_text:Show()
 
             obj.time_text:ClearAllPoints()
             obj.time_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
+            obj.time_text:SetWidth(bar_timer_slot_width)
+            obj.time_text:SetJustifyH("CENTER")
             if show_timer_text then
                 obj.time_text:Show()
             else
@@ -1088,6 +1097,8 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
 
             obj.time_text:ClearAllPoints()
             obj.time_text:SetPoint("TOP", obj, "BOTTOM", 0, -2)
+            obj.time_text:SetWidth(icon_size + 12)
+            obj.time_text:SetJustifyH("CENTER")
             if show_timer_text then
                 obj.time_text:Show()
             else

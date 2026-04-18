@@ -2,10 +2,102 @@ local addon_name, addon = ...
 local M = addon.aura_frames
 
 -- CACHED GLOBALS AND CONSTANTS
-local MAX_POOL_SIZE = 40 -- Default pre-allocation count
+local MAX_POOL_SIZE = 40 -- Default pool size
 local MIN_FRAME_WIDTH = 180
 local MIN_FRAME_HEIGHT = 44
 local format = string.format
+
+M.NUMBER_FONT_OPTIONS = {
+    {
+        key = "inconsolata",
+        label = "Inconsolata",
+        path = "Interface\\AddOns\\LsTweeks\\media\\fonts\\Inconsolata-Regular.ttf",
+        size = 9,
+        flags = "",
+    },
+    {
+        key = "jetbrains_mono",
+        label = "JetBrains Mono",
+        path = "Interface\\AddOns\\LsTweeks\\media\\fonts\\JetBrainsMono-Regular.ttf",
+        size = 9,
+        flags = "",
+    },
+    {
+        key = "source_code_pro",
+        label = "Source Code Pro",
+        path = "Interface\\AddOns\\LsTweeks\\media\\fonts\\SourceCodePro-Regular.ttf",
+        size = 9,
+        flags = "",
+    },
+    {
+        key = "roboto_mono",
+        label = "Roboto Mono",
+        path = "Interface\\AddOns\\LsTweeks\\media\\fonts\\RobotoMono-Regular.ttf",
+        size = 9,
+        flags = "",
+    },
+    {
+        key = "game_default",
+        label = "Game Default",
+        path = nil,
+        size = nil,
+        flags = nil,
+    },
+}
+
+-- bold variant paths; nil means no bold available for that font
+M.NUMBER_FONT_BOLD_PATHS = {
+    inconsolata    = "Interface\\AddOns\\LsTweeks\\media\\fonts\\Inconsolata-Bold.ttf",
+    jetbrains_mono = "Interface\\AddOns\\LsTweeks\\media\\fonts\\JetBrainsMono-Bold.ttf",
+    source_code_pro= "Interface\\AddOns\\LsTweeks\\media\\fonts\\SourceCodePro-Bold.ttf",
+    roboto_mono    = "Interface\\AddOns\\LsTweeks\\media\\fonts\\RobotoMono-Bold.ttf",
+}
+
+local function get_number_font_def(key)
+    local selected_key = key or (M.db and M.db.timer_number_font) or "inconsolata"
+    for _, def in ipairs(M.NUMBER_FONT_OPTIONS) do
+        if def.key == selected_key then
+            return def
+        end
+    end
+    return M.NUMBER_FONT_OPTIONS[1]
+end
+
+function M.get_number_font_options()
+    return M.NUMBER_FONT_OPTIONS
+end
+
+function M.apply_number_font_to_text(font_string)
+    if not font_string or not font_string.SetFont then return end
+    local def = get_number_font_def()
+    local size = (M.db and tonumber(M.db.timer_number_font_size)) or def.size or 9
+
+    if size < 6 then size = 6 end
+    if size > 18 then size = 18 end
+
+    if def.path then
+        local use_bold = M.db and M.db.timer_number_font_bold
+        local bold_path = use_bold and M.NUMBER_FONT_BOLD_PATHS[def.key]
+        font_string:SetFont(bold_path or def.path, size, def.flags or "")
+    elseif STANDARD_TEXT_FONT then
+        font_string:SetFont(STANDARD_TEXT_FONT, size, "")
+    else
+        font_string:SetFontObject(GameFontHighlightSmall)
+    end
+end
+
+function M.apply_number_font_to_all()
+    if not M.frames then return end
+    for _, frame in pairs(M.frames) do
+        if frame and frame.icons then
+            for _, obj in ipairs(frame.icons) do
+                if obj and obj.time_text then
+                    M.apply_number_font_to_text(obj.time_text)
+                end
+            end
+        end
+    end
+end
 
 -- safely copy default tables into saved variables without reference issues
 local function deep_copy(src, dest)
@@ -152,7 +244,17 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         
         -- Text - create as children of text_overlay so they render above the bar
         obj.name_text  = obj.text_overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall", 7)
+        obj.name_text:SetJustifyH("LEFT")
+        obj.name_text:SetWordWrap(false)
+        if obj.name_text.SetMaxLines then
+            obj.name_text:SetMaxLines(1)
+        end
         obj.time_text  = obj.text_overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall", 7)
+        M.apply_number_font_to_text(obj.time_text)
+        obj.time_text:SetWordWrap(false)
+        if obj.time_text.SetMaxLines then
+            obj.time_text:SetMaxLines(1)
+        end
         -- Stack count (shown bottom-right of icon in icon mode, or appended in bar mode)
         obj.count_text = obj.text_overlay:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
         obj.count_text:Hide()
@@ -274,6 +376,13 @@ loader:SetScript("OnEvent", function(self, event, name)
         -- Populate missing settings using the defaults defined in af_defaults.lua
         if M.defaults then deep_copy(M.defaults, M.db) end
 
+        if not M.db.timer_number_font then
+            M.db.timer_number_font = "inconsolata"
+        end
+        if not M.db.timer_number_font_size then
+            M.db.timer_number_font_size = 9
+        end
+
         local bar_bg_alpha = M.BAR_BG_ALPHA_DEFAULT
 
         -- Migrate legacy neutral bar background defaults to color-matched default alpha.
@@ -320,6 +429,7 @@ end)
 function M.on_reset_complete()
     M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
     M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+    M.apply_number_font_to_all()
 
     if M.sync_general_controls_from_db then
         M.sync_general_controls_from_db()

@@ -7,6 +7,7 @@ local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
 local GetTime = GetTime
+local format = string.format
 
 -- ============================================================================
 -- TEST AURA CONFIG
@@ -96,8 +97,16 @@ function M.update_test_preview_display(obj, show_key, short_threshold, show_time
     end
 
     if show_timer_text and duration > 0 then
+        local time_text
+        if show_key == "show_short" then
+            local rounded = math_floor((remaining * 10) + 0.5) / 10
+            time_text = format("%.1f", rounded)
+        else
+            time_text = format_time(remaining)
+        end
+
         obj.time_text:Show()
-        obj.time_text:SetText(format_time(remaining))
+        obj.time_text:SetText(time_text)
     else
         obj.time_text:Hide()
     end

@@ -28,6 +28,7 @@ functions\slider_with_box.lua
 functions\module_reset.lua
 functions\color_picker.lua
 functions\panel_riveted.lua
+functions\dropdown.lua
 
 # --- Modules ---
 modules\about.lua
