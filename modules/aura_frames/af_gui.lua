@@ -71,6 +71,23 @@ function M.BuildSettings(parent)
     title:SetPoint("TOPLEFT", 10, -10)
     title:SetText("Buffs & Debuffs Configuration")
 
+    local font_options = {}
+    local defs = M.get_number_font_options and M.get_number_font_options() or {}
+    for _, def in ipairs(defs) do
+        font_options[#font_options + 1] = {
+            value = def.key,
+            text = def.label,
+            font_path = def.path,
+            font_size = def.size,
+            font_flags = def.flags,
+        }
+    end
+
+    local size_options = {}
+    for i = 8, 14, 2 do
+        size_options[#size_options + 1] = { value = i, text = tostring(i) }
+    end
+
     local tabs, panels = {}, {}
     local tab_data = {
         { name = "General", is_general = true },
@@ -93,22 +110,20 @@ function M.BuildSettings(parent)
         local grid = {
             left = 16,
             right = 330,
-            y = -16,
+            row_start = -16,
             row = 42,
             slider_row = 64,
         }
 
-        local function place(control, column, y_offset)
+        local function place_at(control, row, column)
             local x = grid[column]
-            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, grid.y + (y_offset or 0))
+            local y = grid.row_start - ((row - 1) * grid.row)
+            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, y)
         end
 
-        local function next_row()
-            grid.y = grid.y - grid.row
-        end
-
-        local function next_slider_row()
-            grid.y = grid.y - grid.slider_row
+        local function place_slider(control, slider_index)
+            local y = grid.row_start - (3 * grid.row) - ((slider_index - 1) * grid.slider_row)
+            control:SetPoint("TOPLEFT", p, "TOPLEFT", grid.left, y)
         end
 
         -- Row 1
@@ -121,41 +136,8 @@ function M.BuildSettings(parent)
                 M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
             end
         )
-        place(blizz_buff_container, "left")
+        place_at(blizz_buff_container, 1, "left")
         M.controls["disable_blizz_buffs"] = blizz_buff
-
-        local font_options = {}
-        local defs = M.get_number_font_options and M.get_number_font_options() or {}
-        for _, def in ipairs(defs) do
-            font_options[#font_options + 1] = {
-                value = def.key,
-                text = def.label,
-                font_path = def.path,
-                font_size = def.size,
-                font_flags = def.flags,
-            }
-        end
-
-        local number_font = M.CreateListDropdown(
-            addon_name.."NumberFont",
-            p,
-            "Number Font",
-            font_options,
-            function()
-                return M.db.timer_number_font or "inconsolata"
-            end,
-            function(value)
-                M.db.timer_number_font = value
-                if M.apply_number_font_to_all then
-                    M.apply_number_font_to_all()
-                end
-                refresh_all_category_frames()
-            end
-        )
-        place(number_font, "right")
-        M.controls["timer_number_font_dropdown"] = number_font
-
-        next_row()
 
         -- Row 2
         local blizz_debuff_container, blizz_debuff, _ = addon.CreateCheckbox(
@@ -167,56 +149,16 @@ function M.BuildSettings(parent)
                 M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
             end
         )
-        place(blizz_debuff_container, "left")
+        place_at(blizz_debuff_container, 2, "left")
         M.controls["disable_blizz_debuffs"] = blizz_debuff
 
-        local size_options = {}
-        for i = 7, 14 do
-            size_options[#size_options + 1] = { value = i, text = tostring(i) }
-        end
+        -- (Bold Numbers checkbox removed from General tab)
 
-        local number_font_size = M.CreateListDropdown(
-            addon_name.."NumberFontSize",
-            p,
-            "Number Font Size",
-            size_options,
-            function()
-                return tonumber(M.db.timer_number_font_size) or 9
-            end,
-            function(value)
-                M.db.timer_number_font_size = tonumber(value) or 9
-                if M.apply_number_font_to_all then
-                    M.apply_number_font_to_all()
-                end
-                refresh_all_category_frames()
-            end
-        )
-        place(number_font_size, "right")
-        M.controls["timer_number_font_size_dropdown"] = number_font_size
+        -- (Timer Text Alignment dropdown removed)
 
-        next_slider_row()
-
-        -- Row 3
-        local number_font_bold_container, number_font_bold_cb, _ = addon.CreateCheckbox(
-            p,
-            "Bold Numbers",
-            M.db.timer_number_font_bold,
-            function(is_checked)
-                M.db.timer_number_font_bold = is_checked
-                if M.apply_number_font_to_all then
-                    M.apply_number_font_to_all()
-                end
-                refresh_all_category_frames()
-            end
-        )
-        place(number_font_bold_container, "right")
-        M.controls["timer_number_font_bold"] = number_font_bold_cb
-
-        next_row()
-
-        -- Row 4 (threshold)
+        -- Row 3: Short Buff Threshold slider
         local threshold_debounce = nil
-        local threshold = addon.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (s)", 10, 300, 10, M.db, "short_threshold", M.defaults, function()
+        local threshold = addon.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold (sec)", 10, 300, 10, M.db, "short_threshold", M.defaults, function()
             if threshold_debounce then threshold_debounce:Cancel() end
             threshold_debounce = C_Timer.NewTimer(0.1, function()
                 threshold_debounce = nil
@@ -226,56 +168,66 @@ function M.BuildSettings(parent)
                 end
             end)
         end)
-        place(threshold, "left")
+        place_at(threshold, 3, "left")
 
-        next_slider_row()
+        -- (No demo sliders)
 
         -- Keep reset panel outside the grid-managed main area.
         local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
-        resetPanel:SetPoint("TOP", p, "TOP", 0, grid.y)
+        resetPanel:SetPoint("BOTTOM", p, "BOTTOM", 0, -50)
     end
 
     local function build_category_tab(p, data)
         local cat = data.show_key:sub(6)
         local filter = data.is_debuff and "HARMFUL" or "HELPFUL"
         local test_key = "test_aura_"..cat
+
         local function update() -- refreshes current category frame preview
             M.update_auras(M.frames[data.show_key], data.show_key, data.move_key, data.timer_key, data.bg_key, data.scale_key, data.spacing_key, filter)
         end
 
-        -- GRID CONFIGURATION
+        -- GRID CONFIGURATION (explicit row/column placement for all tab controls)
         local grid = {
             left = 20,
             mid = 180,
             far = 375,
-            y = -20,
+            row_start = -20,
             row = 42,
             slider_row = 68,
             reset_btn_width = 110,
-            dropdown_y = 8,
-            picker_y = 4,
+            offsets = {
+                default = 0,
+                dropdown = 8,
+                picker = 4,
+            },
+            content_rows = 5,
         }
 
-        local function place(control, column, y_offset)
+        local function place_at(control, row, column, slot)
             local x = grid[column]
-            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, grid.y + (y_offset or 0))
+            local base_y = grid.row_start - ((row - 1) * grid.row)
+            local y_offset = grid.offsets[slot or "default"] or 0
+            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, base_y + y_offset)
         end
 
-        local function next_row()
-            grid.y = grid.y - grid.row
+        local function place_slider(control, slider_index)
+            local y = grid.row_start - (grid.content_rows * grid.row) - ((slider_index - 1) * grid.slider_row)
+            control:SetPoint("TOPLEFT", p, "TOPLEFT", grid.left, y)
         end
 
-        local function next_slider_row()
-            grid.y = grid.y - grid.slider_row
-        end
-
-        local function create_bound_checkbox(label, db_key, column, y_offset, on_change, control_key)
+        local function create_bound_checkbox(label, db_key, row, column, on_change, control_key, extra_on_uncheck, extra_on_check)
             local container, checkbox, _ = addon.CreateCheckbox(
                 p,
                 label,
                 M.db[db_key],
                 function(is_checked)
                     M.db[db_key] = is_checked
+                    if is_checked and extra_on_check then
+                        extra_on_check()
+                    end
+                    if not is_checked and extra_on_uncheck then
+                        extra_on_uncheck()
+                    end
                     if on_change then
                         on_change(is_checked)
                     else
@@ -283,18 +235,18 @@ function M.BuildSettings(parent)
                     end
                 end
             )
-            place(container, column, y_offset)
+            place_at(container, row, column)
             M.controls[control_key or db_key] = checkbox
             return container, checkbox
         end
 
-        local function create_bound_color_picker(db_key, has_alpha, label, column, y_offset)
+        local function create_bound_color_picker(db_key, has_alpha, label, row, column)
             local picker = addon.CreateColorPicker(p, M.db, db_key, has_alpha, label, M.defaults, update)
-            place(picker, column, y_offset)
+            place_at(picker, row, column, "picker")
             return picker
         end
 
-        local function create_bound_slider(name_suffix, label, min_v, max_v, step, db_key, on_change)
+        local function create_bound_slider(name_suffix, label, min_v, max_v, step, db_key, slider_index, on_change)
             local slider = addon.CreateSliderWithBox(
                 addon_name..cat..name_suffix,
                 p,
@@ -307,19 +259,19 @@ function M.BuildSettings(parent)
                 M.defaults,
                 on_change or update
             )
-            place(slider, "left")
+            place_slider(slider, slider_index)
             return slider
         end
 
-        -- first ROW
+        -- Row 1
 
         -- move mode
-        local _, move_cb = create_bound_checkbox("Move Mode", data.move_key, "left")
+        local _, move_cb = create_bound_checkbox("Move Mode", data.move_key, 1, "left")
 
         -- move Reset
         local move_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
         move_reset:SetSize(grid.reset_btn_width, 22)
-        place(move_reset, "mid")
+        place_at(move_reset, 1, "mid")
         move_reset:SetText("Move Reset")
         move_reset:SetScript("OnClick", function()
             local dPos = M.defaults.positions[cat]
@@ -338,57 +290,113 @@ function M.BuildSettings(parent)
             end
         end)
 
-        -- Growth Direction (top row, right column)
-        place(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), "far", grid.dropdown_y)
+        -- Growth Direction
+        place_at(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), 1, "far", "dropdown")
 
-        next_row() -- new row
+        -- Row 2
 
         -- Enable Frame
-        create_bound_checkbox("Enable Frame", data.show_key, "left")
+        local cat = data.show_key:sub(6)
+        local test_key = "test_aura_"..cat
+        local function uncheck_test_aura()
+            if M.db[test_key] then
+                M.db[test_key] = false
+                local test_cb = M.controls[test_key]
+                if test_cb and test_cb.SetChecked then
+                    test_cb:SetChecked(false)
+                end
+            end
+        end
+        local function check_enable_frame()
+            if not M.db[data.show_key] then
+                M.db[data.show_key] = true
+                local enable_cb = M.controls[data.show_key]
+                if enable_cb and enable_cb.SetChecked then
+                    enable_cb:SetChecked(true)
+                end
+            end
+        end
+        create_bound_checkbox("Enable Frame", data.show_key, 2, "left", nil, nil, uncheck_test_aura)
 
-        -- Frame background (same row, right of Enable Frame)
-        create_bound_checkbox("Frame Background", data.bg_key, "mid")
+        -- Frame background
+        create_bound_checkbox("Frame BackGround (BG)", data.bg_key, 2, "mid")
 
-        -- Test aura preview toggle
-        create_bound_checkbox("Show Test Aura", test_key, "far", nil, update)
+        -- Frame BG color picker (second row, far-right)
+        create_bound_color_picker("bg_color_"..cat, true, "Frame BG Color", 2, "far")
 
-        next_row()
-
-        -- Frame BG color picker
-        create_bound_color_picker("bg_color_"..cat, true, "Frame BG Color", "far", grid.picker_y)
-
-        -- ROW
-        -- bar mode
-        local bar_mode_key = "use_bars_"..cat
-        create_bound_checkbox("Bar Mode", bar_mode_key, "left")
-
-        -- bar color picker
-        create_bound_color_picker("color_"..cat, false, "Bar Color", "mid", grid.picker_y)
-
-        -- bar background color picker
-        create_bound_color_picker("bar_bg_color_"..cat, true, "Bar BG Color", "far", grid.picker_y)
-
+        -- Row 3: Show Test Aura (left), Bold Numbers (far) (was row 4)
         if cat ~= "static" then
-            next_row()
-
-            -- Fourth row: timer text visibility
-            create_bound_checkbox("Show Time Remaining", data.timer_key, "left")
+            create_bound_checkbox("Show Test Aura", test_key, 3, "left", update, nil, nil, check_enable_frame)
+            create_bound_checkbox("Timer Bold", "timer_number_font_bold_"..cat, 3, "far", function()
+                if M.apply_number_font_to_all then M.apply_number_font_to_all() end
+                update()
+            end)
+        else
+            create_bound_checkbox("Show Test Aura", test_key, 3, "left", update, nil, nil, check_enable_frame)
+            M.controls["timer_number_font_dropdown_"..cat] = nil
+            M.controls["timer_number_font_size_dropdown_"..cat] = nil
         end
 
-        -- SLIDERS SECTION
-        next_slider_row()
+        -- Row 4: Bar Mode and color pickers (was row 3)
+        local bar_mode_key = "use_bars_"..cat
+        create_bound_checkbox("Bar Mode", bar_mode_key, 4, "left")
+        create_bound_color_picker("color_"..cat, false, "Bar Color", 4, "mid")
+        create_bound_color_picker("bar_bg_color_"..cat, true, "Bar BG Color", 4, "far")
 
-        create_bound_slider("Scale", "Scale", 0.5, 2.5, 0.01, data.scale_key)
+        -- Row 5: Timer Text, Timer Font, Timer Font Size (unchanged)
+        if cat ~= "static" then
+            create_bound_checkbox("Timer Text", data.timer_key, 5, "left")
+            local timer_font = M.CreateListDropdown(
+                addon_name..cat.."TimerFont",
+                p,
+                "Timer Font",
+                font_options,
+                function()
+                    return M.db["timer_number_font_"..cat] or M.db.timer_number_font or "source_code_pro"
+                end,
+                function(value)
+                    M.db["timer_number_font_"..cat] = value
+                    if M.apply_number_font_to_all then
+                        M.apply_number_font_to_all()
+                    end
+                    update()
+                end
+            )
+            place_at(timer_font, 5, "mid")
+            M.controls["timer_number_font_dropdown_"..cat] = timer_font
 
-        next_slider_row()
+            local timer_font_size = M.CreateListDropdown(
+                addon_name..cat.."TimerFontSize",
+                p,
+                "Timer Font Size",
+                size_options,
+                function()
+                    return (M.get_timer_number_font_size and M.get_timer_number_font_size(cat)) or 10
+                end,
+                function(value)
+                    M.db["timer_number_font_size_"..cat] = tonumber(value)
+                        or ((M.get_timer_number_font_size and M.get_timer_number_font_size(cat)) or 10)
+                    if M.apply_number_font_to_all then
+                        M.apply_number_font_to_all()
+                    end
+                    update()
+                end
+            )
+            place_at(timer_font_size, 5, "far")
+            M.controls["timer_number_font_size_dropdown_"..cat] = timer_font_size
+        end
 
-        create_bound_slider("Spacing", "Spacing", 0, 40, 0.1, data.spacing_key)
+        -- SLIDERS SECTION: All in row 6, side by side
+        local scale_slider = create_bound_slider("Scale", "Scale", 0.5, 2.5, 0.01, data.scale_key, 1, update)
+        place_at(scale_slider, 6, "left")
 
-        next_slider_row()
+        local spacing_slider = create_bound_slider("Spacing", "Spacing", 0, 40, 0.1, data.spacing_key, 2)
+        place_at(spacing_slider, 6, "mid")
 
-        create_bound_slider("PoolSlider", "Max Icons (Requires /reload)", 5, 100, 1, "max_icons_"..cat, function()
+        local max_icons_slider = create_bound_slider("PoolSlider", "Max Icons", 5, 100, 1, "max_icons_"..cat, 3, function()
             print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
         end)
+        place_at(max_icons_slider, 6, "far")
     end
 
     for i, data in ipairs(tab_data) do
@@ -450,19 +458,34 @@ function M.sync_general_controls_from_db()
         debuffs:SetChecked(M.db.disable_blizz_debuffs)
     end
 
-    local font_dropdown = M.controls["timer_number_font_dropdown"]
-    if font_dropdown and font_dropdown.SetValue then
-        font_dropdown:SetValue(M.db.timer_number_font or "inconsolata")
-    end
+    for _, cat in ipairs({ "static", "short", "long", "debuff" }) do
+        local font_dropdown = M.controls["timer_number_font_dropdown_"..cat]
+        if font_dropdown and font_dropdown.SetValue then
+            font_dropdown:SetValue(M.db["timer_number_font_"..cat] or M.db.timer_number_font or "source_code_pro")
+        end
 
-    local font_size_dropdown = M.controls["timer_number_font_size_dropdown"]
-    if font_size_dropdown and font_size_dropdown.SetValue then
-        font_size_dropdown:SetValue(tonumber(M.db.timer_number_font_size) or 9)
+        local font_size_dropdown = M.controls["timer_number_font_size_dropdown_"..cat]
+        if font_size_dropdown and font_size_dropdown.SetValue then
+            font_size_dropdown:SetValue((M.get_timer_number_font_size and M.get_timer_number_font_size(cat)) or 10)
+        end
     end
 
     local bold_cb = M.controls["timer_number_font_bold"]
     if bold_cb and bold_cb.SetChecked then
         bold_cb:SetChecked(M.db.timer_number_font_bold)
     end
+
+    for _, cat in ipairs({ "short", "long", "debuff" }) do
+        local cat_bold_cb = M.controls["timer_number_font_bold_"..cat]
+        if cat_bold_cb and cat_bold_cb.SetChecked then
+            cat_bold_cb:SetChecked(M.db["timer_number_font_bold_"..cat] or false)
+        end
+    end
+
+    local timer_align_dropdown = M.controls["timer_number_alignment_dropdown"]
+    if timer_align_dropdown and timer_align_dropdown.SetValue then
+        timer_align_dropdown:SetValue(M.db.timer_number_alignment or "center")
+    end
+
 end
 

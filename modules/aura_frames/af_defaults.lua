@@ -31,10 +31,20 @@ M.defaults = {
     disable_blizz_buffs = false,
     disable_blizz_debuffs = false,
     short_threshold = 60,
-    timer_number_font = "inconsolata",
-    timer_number_font_size = 9,
+    timer_number_font = "source_code_pro",
+    timer_number_font_size = 10,
     timer_number_font_bold = false,
-    
+    -- ...
+    timer_number_alignment = "center",
+    timer_cell_align = "center",
+    timer_cell_outer_padding = 0,
+    timer_cell_inner_padding = 0,
+    timer_cell_vertical_padding = 0,
+    timer_cell_char_align = "center",
+    timer_cell_char_padding = 0,
+    timer_cell_text_pad_x = 0,
+    timer_cell_text_pad_y = 0,
+
     -- STATIC
     show_static     = false,
     move_static     = true,
@@ -68,6 +78,9 @@ M.defaults = {
     bg_color_short = default_bg_color(),
     sort_short   = "timeleft",
     test_aura_short = false,
+    timer_number_font_short = "source_code_pro",
+    timer_number_font_size_short = 10,
+    timer_number_font_bold_short = false,
 
     -- LONG
     show_long       = false,
@@ -85,6 +98,9 @@ M.defaults = {
     bg_color_long = default_bg_color(),
     sort_long    = "timeleft",
     test_aura_long = false,
+    timer_number_font_long = "source_code_pro",
+    timer_number_font_size_long = 10,
+    timer_number_font_bold_long = false,
 
     -- DEBUFFS
     show_debuff     = false,
@@ -102,6 +118,9 @@ M.defaults = {
     bg_color_debuff = default_bg_color(),
     sort_debuff  = "timeleft",
     test_aura_debuff = false,
+    timer_number_font_debuff = "source_code_pro",
+    timer_number_font_size_debuff = 10,
+    timer_number_font_bold_debuff = false,
     
     -- POSITIONS
     positions = {
@@ -111,3 +130,20 @@ M.defaults = {
         debuff = { point = "CENTER", x = 0, y = -50 },
     }
 }
+
+-- Single source of truth for timer font-size lookup.
+-- Category-specific value -> global value -> default global value.
+function M.get_timer_number_font_size(category)
+    local db = M.db or {}
+    local defaults = M.defaults or {}
+
+    if category then
+        local category_size = tonumber(db["timer_number_font_size_"..category])
+        if category_size then return category_size end
+    end
+
+    local global_size = tonumber(db.timer_number_font_size)
+    if global_size then return global_size end
+
+    return tonumber(defaults.timer_number_font_size) or 10
+end

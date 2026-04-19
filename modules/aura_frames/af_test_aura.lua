@@ -7,7 +7,6 @@ local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
 local GetTime = GetTime
-local format = string.format
 
 -- ============================================================================
 -- TEST AURA CONFIG
@@ -15,8 +14,7 @@ local format = string.format
 
 local CFG = {
     icon            = "Interface\\Icons\\INV_Misc_QuestionMark",
-    short_min       = 10,   -- minimum short preview duration (seconds)
-    short_max       = 30,   -- cap for short preview duration
+    short_duration  = 20,   -- short preview duration (seconds)
     long_extra_min  = 30,   -- minimum seconds added above threshold for long preview
     long_extra_frac = 0.5,  -- fraction of threshold added for long preview
     sec_per_stack   = 2.0,  -- seconds each stack value is held (0.1 increments)
@@ -42,7 +40,7 @@ function M.get_test_preview_state(show_key, short_threshold, now)
     end
 
     local threshold = short_threshold or 60
-    local short_duration = math_max(CFG.short_min, math_min(threshold, CFG.short_max))
+    local short_duration = CFG.short_duration
     local duration = (show_key == "show_long")
         and (threshold + math_max(CFG.long_extra_min, math_floor(threshold * CFG.long_extra_frac)))
         or  short_duration
@@ -81,7 +79,7 @@ function M.append_test_aura(aura_map, show_key, filter, short_threshold)
     aura_map["__test_preview__"] = M.build_test_aura_entry(show_key, filter, short_threshold)
 end
 
-function M.update_test_preview_display(obj, show_key, short_threshold, show_timer_text, use_bars, format_time, now)
+function M.update_test_preview_display(obj, show_key, short_threshold, show_timer_text, use_bars, now)
     local duration, remaining, count = M.get_test_preview_state(show_key, short_threshold, now)
 
     obj.aura_duration = duration
@@ -97,16 +95,10 @@ function M.update_test_preview_display(obj, show_key, short_threshold, show_time
     end
 
     if show_timer_text and duration > 0 then
-        local time_text
-        if show_key == "show_short" then
-            local rounded = math_floor((remaining * 10) + 0.5) / 10
-            time_text = format("%.1f", rounded)
-        else
-            time_text = format_time(remaining)
-        end
-
         obj.time_text:Show()
-        obj.time_text:SetText(time_text)
+        -- Use the shared timer formatter so preview always inherits the same
+        -- formatting behavior as live auras.
+        M.set_timer_text(obj.time_text, show_key:sub(6), remaining)
     else
         obj.time_text:Hide()
     end

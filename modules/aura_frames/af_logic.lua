@@ -15,6 +15,13 @@ local format = format                -- WoW global alias for string.format
 addon.aura_frames = addon.aura_frames or {}
 local M = addon.aura_frames
 
+-- Snap a logical coordinate to the nearest physical pixel boundary.
+-- effective_scale = frame:GetEffectiveScale() at the call site.
+local function pixel_snap(value, effective_scale)
+    if not effective_scale or effective_scale == 0 then return floor(value + 0.5) end
+    return floor(value * effective_scale + 0.5) / effective_scale
+end
+
 -- Categorize aura by remaining time.
 -- remaining == nil means duration was secret; caller handles that case separately.
 local function categorize_aura(remaining, show_key, short_threshold)
@@ -36,6 +43,96 @@ local function format_time(s)
     return format("%.1f s", s)
 end
 M.format_time = format_time
+
+local function is_timer_text_enabled(db, category, timer_key)
+    if category == "static" then
+        return false
+    end
+
+    local value
+    if timer_key then
+        value = db and db[timer_key]
+    else
+        value = db and db["timer_"..category]
+    end
+
+    if value == nil then
+        return true
+    end
+    return value and true or false
+end
+
+local function get_bar_layout_params(timer_font_size)
+    -- Keep this argument available for future size-aware scaling rules.
+    timer_font_size = tonumber(timer_font_size) or 10
+    -- Dynamically scale timer slot width: enough for 4 wide digits at large font sizes
+    local min_width = 36
+    local scale_factor = 2.7 -- empirically fits 4 digits at font size 14
+    local timer_slot_width = math_max(min_width, math.ceil(timer_font_size * scale_factor))
+
+    return {
+        -- Outer bar row geometry and frame inset.
+        frame_inset = 6,
+        frame_inner_width_pad = 12,
+        row_height = 20,
+
+        -- Icon + bar composition.
+        icon_size = 18,
+        icon_to_bar_gap = 5,
+        bar_height = 18,
+
+        -- Left stack/count slot.
+        stack_slot_left_pad = 2,
+        stack_slot_width = 20,
+        stack_slot_height = 18,
+
+        -- Right timer slot.
+        timer_slot_width = timer_slot_width,
+        timer_slot_right_pad = 2,
+        timer_slot_height = 18,
+
+        -- Middle name slot between stack and timer.
+        name_slot_left_gap = 2,
+        name_slot_right_gap = 2,
+        name_slot_right_no_timer = 4,
+        name_slot_height = 18,
+
+        -- Text padding inside the name slot.
+        name_text_left_pad = 2,
+        name_text_right_pad = 2,
+    }
+end
+
+-- Single timer text renderer for all aura timers (live + test).
+-- Keep behavior changes here so all timer displays stay consistent.
+function M.set_timer_text(font_string, category, seconds)
+    if not font_string then return end
+
+    if seconds == nil then
+        font_string:SetText("")
+        return
+    end
+
+    font_string:Show()
+
+    if issecretvalue(seconds) then
+        font_string:SetFormattedText("%.1f", seconds)
+        return
+    end
+
+    if seconds <= 0 then
+        font_string:SetText("")
+        return
+    end
+
+    local is_short = (category == "short" or category == "show_short")
+    if is_short then
+        local rounded = floor((seconds * 10) + 0.5) / 10
+        font_string:SetText(format("%.1f", rounded))
+    else
+        font_string:SetText(format_time(seconds))
+    end
+end
 
 -- Merge UNIT_AURA payloads while a deferred scan is pending.
 -- Blizzard can fire multiple UNIT_AURA events inside the 0.1s bucket window;
@@ -92,14 +189,14 @@ function M.tick_visible_icons(now)
     for _, frame in pairs(M.frames) do
         if frame:IsVisible() then
             local is_static_frame = (frame.category == "static")
-            local show_timer_text = M.db and M.db["timer_"..frame.category]
+            local show_timer_text = is_timer_text_enabled(M.db, frame.category)
             local use_bars = M.db and M.db["use_bars_"..frame.category]
             for i = 1, #frame.icons do
                 local obj = frame.icons[i]
                 if obj:IsShown() and is_static_frame then
                     obj.time_text:SetText("")
                 elseif obj:IsShown() and obj.is_test_preview then
-                    M.update_test_preview_display(obj, "show_" .. frame.category, short_threshold, show_timer_text, use_bars, M.format_time, now)
+                    M.update_test_preview_display(obj, "show_" .. frame.category, short_threshold, show_timer_text, use_bars, now)
                 elseif obj:IsShown() and obj.aura_index then
                     -- Enforce time_text visibility from the live setting each tick.
                     -- setup_layout is blocked in combat lockdown, so this is the only
@@ -138,7 +235,7 @@ function M.tick_visible_icons(now)
                     -- and remaining are secret). Keep the last rendered text in that case.
                     if remaining and remaining > 0 then
                         if show_timer_text then
-                            obj.time_text:SetText(M.format_time(remaining))
+                            M.set_timer_text(obj.time_text, frame.category, remaining)
                         end
                         if obj.bar and obj.bar:IsShown() then
                             obj.bar:SetValue(remaining)
@@ -147,7 +244,7 @@ function M.tick_visible_icons(now)
                         obj.time_text:SetText("")
                     elseif live_remaining ~= nil and issecretvalue(live_remaining) then
                         if show_timer_text then
-                            obj.time_text:SetFormattedText("%.1f", live_remaining)
+                            M.set_timer_text(obj.time_text, frame.category, live_remaining)
                         end
                     end
                 end
@@ -163,17 +260,17 @@ local function set_blizz_frame_state(frame, hide)
     if hide then
         frame:Hide()
         frame:UnregisterAllEvents()
-    else -- Re-register the essential events
+        if frame.SetScript then frame:SetScript("OnShow", nil) end
+        -- When hiding, optionally restore parent and position if needed (optional, not required by user)
+    else
+        -- Re-register the essential events
         frame:RegisterEvent("UNIT_AURA")
         frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+        -- Do NOT re-anchor or re-parent when showing (per user request)
         frame:Show()
-
-        if frame == BuffFrame and frame.UpdateAuras then
-            frame:UpdateAuras()
-        elseif frame == DebuffFrame and frame.UpdateAuras then
+        if frame.UpdateAuras then
             frame:UpdateAuras()
         end
-
         if frame.UpdateLayout then
             frame:UpdateLayout()
         end
@@ -932,17 +1029,13 @@ local function render_aura_map(self, aura_map, use_bars, color, bar_bg_color, ma
 
                 if display_remaining and display_remaining > 0 then
                     if show_timer_text then
-                        if display_remaining > short_threshold then
-                            obj.time_text:SetText(M.format_time(display_remaining))
-                        else
-                            obj.time_text:SetFormattedText("%.1f", rem)
-                        end
+                        M.set_timer_text(obj.time_text, self.category, display_remaining)
                     else
                         obj.time_text:SetText("")
                     end
                 else
                     if show_timer_text then
-                        obj.time_text:SetFormattedText("%.1f", rem)
+                        M.set_timer_text(obj.time_text, self.category, rem)
                     else
                         obj.time_text:SetText("")
                     end
@@ -952,7 +1045,7 @@ local function render_aura_map(self, aura_map, use_bars, color, bar_bg_color, ma
                 end
             elseif rem > 0 then
                 if show_timer_text then
-                    obj.time_text:SetText(M.format_time(rem))
+                    M.set_timer_text(obj.time_text, self.category, rem)
                 else
                     obj.time_text:SetText("")
                 end
@@ -975,7 +1068,7 @@ local function render_aura_map(self, aura_map, use_bars, color, bar_bg_color, ma
             rem = entry.expiration > 0 and math_max(0, entry.expiration - now) or entry.remaining
             if rem > 0 then
                 if show_timer_text then
-                    obj.time_text:SetText(M.format_time(rem))
+                    M.set_timer_text(obj.time_text, self.category, rem)
                 else
                     obj.time_text:SetText("")
                 end
@@ -1016,9 +1109,16 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
     local frame_width = db["width_"..category] or 200
     local spacing = db[spacing_key] or 6
     local growth = db["growth_"..category] or "DOWN"
-    local show_timer_text = db["timer_"..category]
-    local timer_font_size = tonumber(db.timer_number_font_size) or 9
-    local bar_timer_slot_width = math_max(26, math_ceil(timer_font_size * 3.0))
+
+    local show_timer_text = is_timer_text_enabled(db, category)
+    local timer_font_size = (M.get_timer_number_font_size and M.get_timer_number_font_size(category)) or 10
+    local bar_layout = get_bar_layout_params(timer_font_size)
+    local timer_text_align = (category == "long") and "CENTER" or "RIGHT"
+    -- Anchor point matches horizontal justification so timer text grows/shrinks
+    -- from the same reference point inside the fixed timer slot.
+    local timer_anchor_point = (timer_text_align == "CENTER") and "CENTER" or "RIGHT"
+    local bar_timer_slot_width = bar_layout.timer_slot_width
+    local bar_timer_slot_right_pad = bar_layout.timer_slot_right_pad
 
     local icon_size = 32
     local icon_footprint = icon_size + spacing
@@ -1026,50 +1126,75 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
         and 1
         or math_max(1, floor((frame_width - 12 + spacing) / icon_footprint))
 
+    -- Pixel-snap all sizes and offsets so glyphs land on integer pixel boundaries.
+    local eff_scale = self:GetEffectiveScale()
+    local function snap(v) return pixel_snap(v, eff_scale) end
+
     for i = 1, #self.icons do
         local obj = self.icons[i]
         obj:ClearAllPoints()
         obj.texture:ClearAllPoints()
 
         if use_bars then
-            local bar_h = 20
-            local step  = bar_h + spacing
-            obj:SetSize(frame_width - 12, bar_h)
+            local bar_h = snap(bar_layout.row_height)
+            local step  = snap(bar_h + spacing)
+            obj:SetSize(snap(frame_width - bar_layout.frame_inner_width_pad), bar_h)
 
             if growth == "UP" then
-                obj:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", 6, (i - 1) * step + 6)
+                obj:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", snap(bar_layout.frame_inset), snap((i - 1) * step + bar_layout.frame_inset))
             else
-                obj:SetPoint("TOPLEFT", self, "TOPLEFT", 6, -((i - 1) * step + 6))
+                obj:SetPoint("TOPLEFT", self, "TOPLEFT", snap(bar_layout.frame_inset), -snap((i - 1) * step + bar_layout.frame_inset))
             end
 
-            obj.texture:SetSize(18, 18)
+            obj.texture:SetSize(snap(bar_layout.icon_size), snap(bar_layout.icon_size))
             obj.texture:SetPoint("LEFT", obj, "LEFT", 0, 0)
 
             obj.bar:ClearAllPoints()
-            obj.bar:SetPoint("LEFT", obj.texture, "RIGHT", 5, 0)
+            obj.bar:SetPoint("LEFT", obj.texture, "RIGHT", bar_layout.icon_to_bar_gap, 0)
             obj.bar:SetPoint("RIGHT", obj, "RIGHT", 0, 0)
-            obj.bar:SetHeight(18)
+            obj.bar:SetHeight(bar_layout.bar_height)
+
+            -- Stack slot: left zone (stack count area)
+            obj.stack_slot:ClearAllPoints()
+            obj.stack_slot:SetPoint("LEFT", obj.bar, "LEFT", bar_layout.stack_slot_left_pad, 0)
+            obj.stack_slot:SetSize(bar_layout.stack_slot_width, bar_layout.stack_slot_height)
+            obj.stack_slot:Show()
+
+            -- Timer slot: right zone
+            obj.timer_slot:ClearAllPoints()
+            obj.timer_slot:SetPoint("RIGHT", obj.bar, "RIGHT", -bar_timer_slot_right_pad, 0)
+            obj.timer_slot:SetSize(bar_timer_slot_width, bar_layout.timer_slot_height)
+
+            -- Name slot: middle zone, between stack and timer
+            obj.name_slot:ClearAllPoints()
+            obj.name_slot:SetPoint("LEFT", obj.stack_slot, "RIGHT", bar_layout.name_slot_left_gap, 0)
+            if show_timer_text then
+                obj.name_slot:SetPoint("RIGHT", obj.timer_slot, "LEFT", -bar_layout.name_slot_right_gap, 0)
+            else
+                obj.name_slot:SetPoint("RIGHT", obj.bar, "RIGHT", -bar_layout.name_slot_right_no_timer, 0)
+            end
+            obj.name_slot:SetHeight(bar_layout.name_slot_height)
+            obj.name_slot:Show()
 
             obj.name_text:ClearAllPoints()
-            obj.name_text:SetPoint("LEFT", obj.bar, "LEFT", 22, 0)
-            if show_timer_text then
-                obj.name_text:SetPoint("RIGHT", obj.time_text, "LEFT", -6, 0)
-            else
-                obj.name_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
-            end
+            obj.name_text:SetPoint("LEFT", obj.name_slot, "LEFT", bar_layout.name_text_left_pad, 0)
+            obj.name_text:SetPoint("RIGHT", obj.name_slot, "RIGHT", -bar_layout.name_text_right_pad, 0)
             obj.name_text:Show()
 
             obj.time_text:ClearAllPoints()
-            obj.time_text:SetPoint("RIGHT", obj.bar, "RIGHT", -4, 0)
+            obj.time_text:SetPoint(timer_anchor_point, obj.timer_slot, timer_anchor_point, 0, 0)
             obj.time_text:SetWidth(bar_timer_slot_width)
-            obj.time_text:SetJustifyH("CENTER")
+            obj.time_text:SetJustifyH(timer_text_align)
             if show_timer_text then
+                obj.timer_slot:Show()
                 obj.time_text:Show()
             else
+                obj.timer_slot:Hide()
                 obj.time_text:Hide()
             end
 
             obj.count_text:ClearAllPoints()
+            obj.count_text:SetPoint("CENTER", obj.stack_slot, "CENTER", 0, 0)
             obj.count_text:Hide()  -- stacks shown inline with name in bar mode
 
         else
@@ -1092,16 +1217,28 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
                     col_idx * icon_footprint + 6, -(row_idx * row_h + 6))
             end
 
+            obj.stack_slot:ClearAllPoints()
+            obj.stack_slot:Hide()
+
+            obj.name_slot:ClearAllPoints()
+            obj.name_slot:Hide()
+
             obj.name_text:ClearAllPoints()
             obj.name_text:Hide()
 
+            obj.timer_slot:ClearAllPoints()
+            obj.timer_slot:SetPoint("TOPRIGHT", obj, "BOTTOMRIGHT", 0, -2)
+            obj.timer_slot:SetSize(icon_size, 12)
+
             obj.time_text:ClearAllPoints()
-            obj.time_text:SetPoint("TOP", obj, "BOTTOM", 0, -2)
-            obj.time_text:SetWidth(icon_size + 12)
-            obj.time_text:SetJustifyH("CENTER")
+            obj.time_text:SetPoint(timer_anchor_point, obj.timer_slot, timer_anchor_point, 0, 0)
+            obj.time_text:SetWidth(icon_size)
+            obj.time_text:SetJustifyH(timer_text_align)
             if show_timer_text then
+                obj.timer_slot:Show()
                 obj.time_text:Show()
             else
+                obj.timer_slot:Hide()
                 obj.time_text:Hide()
             end
 
@@ -1112,52 +1249,68 @@ function M.setup_layout(self, show_key, spacing_key, use_bars)
     end
 
     self._layout_cache = {
-        use_bars      = use_bars,
+        use_bars        = use_bars,
         show_timer_text = show_timer_text,
-        icons_per_row = icons_per_row,
-        frame_width   = frame_width,
-        spacing       = spacing,
-        growth        = growth,
+        icons_per_row   = icons_per_row,
+        frame_width     = frame_width,
+        spacing         = spacing,
+        growth          = growth,
     }
 end
 
 local function set_height_for_growth(self, new_height, growth)
     if not self then return end
 
+    -- Snap new_height to a pixel boundary before comparing/applying.
+    local eff_scale = self:GetEffectiveScale()
+    new_height = pixel_snap(new_height, eff_scale)
+
     local old_height = self:GetHeight()
     if old_height == new_height then return end
+    local delta = new_height - old_height
 
-    local left = self:GetLeft()
-    local right = self:GetRight()
-    local top = self:GetTop()
-    local bottom = self:GetBottom()
+    -- Preserve the frame's current anchor point while resizing to prevent
+    -- unwanted point flips (e.g. snapping to BOTTOMLEFT on short frame updates).
+    local point, relative_to, relative_point, x, y = self:GetPoint(1)
 
     self:SetHeight(new_height)
 
-    if not left or not top or not bottom or not right then
+    if not point then
         return
     end
 
-    local parent_w = UIParent:GetWidth()
-    local parent_h = UIParent:GetHeight()
-    local point, x, y
+    if relative_to and relative_to ~= UIParent then
+        relative_to = UIParent
+    end
+    relative_point = relative_point or point
+    x = x or 0
+    y = y or 0
 
-    if growth == "UP" then
-        point = "BOTTOMLEFT"
-        x = left
-        y = bottom
-    elseif growth == "LEFT" then
-        point = "TOPRIGHT"
-        x = right - parent_w
-        y = top - parent_h
-    else
-        point = "TOPLEFT"
-        x = left
-        y = top - parent_h
+    -- Respect vertical growth direction even when the user anchor is center-based.
+    -- DOWN keeps the top edge stable; UP keeps the bottom edge stable.
+    local p = tostring(point or "")
+    local is_top = p:find("TOP", 1, true) ~= nil
+    local is_bottom = p:find("BOTTOM", 1, true) ~= nil
+    if growth == "DOWN" then
+        if is_bottom then
+            y = y - delta
+        elseif not is_top then
+            y = y - (delta * 0.5)
+        end
+    elseif growth == "UP" then
+        if is_top then
+            y = y + delta
+        elseif not is_bottom then
+            y = y + (delta * 0.5)
+        end
     end
 
+    -- Snap the final position to a pixel boundary.
+    x = pixel_snap(x, eff_scale)
+    y = pixel_snap(y, eff_scale)
+
     self:ClearAllPoints()
-    self:SetPoint(point, UIParent, point, x, y)
+    self:SetPoint(point, relative_to or UIParent, relative_point, x, y)
 
     if M.db and M.db.positions and self.category then
         M.db.positions[self.category] = { point = point, x = x, y = y }
@@ -1179,7 +1332,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     local color = db["color_"..category] or {r=1, g=1, b=1}
     local barBgC = db["bar_bg_color_"..category] or {r=color.r, g=color.g, b=color.b, a=bar_bg_alpha}
     local bgC = db["bg_color_"..category] or {r=0, g=0, b=0, a=0.5}
-    local show_timer_text = db[timer_key]
+    local show_timer_text = is_timer_text_enabled(db, category, timer_key)
     local short_threshold = db.short_threshold or 60
     local growth = db["growth_"..category] or "DOWN"
     local max_limit = db["max_icons_"..category] or 40
@@ -1275,7 +1428,7 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
 
     if (db[show_key] or preview_enabled) and not self:IsVisible() then self:Show() end
 
-    -- Backdrop colors
+-- Backdrop colors
     local is_bg_enabled = db[bg_key]
     if is_moving then
         if is_bg_enabled and bgC then
