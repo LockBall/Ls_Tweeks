@@ -107,56 +107,51 @@ function M.BuildSettings(parent)
             end
         end
 
-        local grid = {
-            left = 16,
-            right = 330,
-            row_start = -16,
-            row = 42,
-            slider_row = 64,
-        }
 
-        local function place_at(control, row, column)
-            local x = grid[column]
-            local y = grid.row_start - ((row - 1) * grid.row)
-            control:SetPoint("TOPLEFT", p, "TOPLEFT", x, y)
-        end
+        -- Manual layout for General tab
 
-        local function place_slider(control, slider_index)
-            local y = grid.row_start - (3 * grid.row) - ((slider_index - 1) * grid.slider_row)
-            control:SetPoint("TOPLEFT", p, "TOPLEFT", grid.left, y)
-        end
+        -- Blizzard Buff & Debuff Enable Frames Section
+        local enable_panel = CreateFrame("Frame", nil, p, "BackdropTemplate")
+        enable_panel:SetSize(150, 45)
+        enable_panel:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -16)
+        enable_panel:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        enable_panel:SetBackdropColor(0.08, 0.08, 0.08, 0.85)
+        enable_panel:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
 
-        -- Row 1
-        local blizz_buff_container, blizz_buff, _ = addon.CreateCheckbox(
-            p,
-            "Disable Blizzard Buff Frame",
-            M.db.disable_blizz_buffs,
+        local panel_title = enable_panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        panel_title:SetText("Enable Blizz Frame")
+        panel_title:SetPoint("TOP", enable_panel, "TOP", 0, -5)
+
+
+        -- Blizzard Buff Frame Checkbox (checked = enabled)
+        local enable_blizz_buffs_container, enable_blizz_buffs_cb, _ = addon.CreateCheckbox(enable_panel, "Buff", not M.db.disable_blizz_buffs,
             function(is_checked)
-                M.db.disable_blizz_buffs = is_checked
-                M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
+                M.db.disable_blizz_buffs = not is_checked
+                M.toggle_blizz_buffs(not is_checked)
             end
         )
-        place_at(blizz_buff_container, 1, "left")
-        M.controls["disable_blizz_buffs"] = blizz_buff
+        enable_blizz_buffs_container:SetPoint("CENTER", enable_panel, "CENTER", -40, -5)
+        M.controls["enable_blizz_buffs"] = enable_blizz_buffs_cb
 
-        -- Row 2
-        local blizz_debuff_container, blizz_debuff, _ = addon.CreateCheckbox(
-            p,
-            "Disable Blizzard Debuff Frame",
-            M.db.disable_blizz_debuffs,
+        -- Blizzard Debuff Frame Checkbox (checked = enabled)
+        local enable_blizz_debuffs_container, enable_blizz_debuffs_cb, _ = addon.CreateCheckbox(
+            enable_panel,
+            "Debuff",
+            not M.db.disable_blizz_debuffs,
             function(is_checked)
-                M.db.disable_blizz_debuffs = is_checked
-                M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+                M.db.disable_blizz_debuffs = not is_checked
+                M.toggle_blizz_debuffs(not is_checked)
             end
         )
-        place_at(blizz_debuff_container, 2, "left")
-        M.controls["disable_blizz_debuffs"] = blizz_debuff
+        enable_blizz_debuffs_container:SetPoint("CENTER", enable_panel, "CENTER", 40, -5)
+        M.controls["enable_blizz_debuffs"] = enable_blizz_debuffs_cb
 
-        -- (Bold Numbers checkbox removed from General tab)
-
-        -- (Timer Text Alignment dropdown removed)
-
-        -- Row 3: Short Buff Threshold slider
+        -- Short Buff Threshold slider
         local threshold_debounce = nil
         local threshold = addon.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold", 10, 300, 10, M.db, "short_threshold", M.defaults, function()
             if threshold_debounce then threshold_debounce:Cancel() end
@@ -168,9 +163,22 @@ function M.BuildSettings(parent)
                 end
             end)
         end)
-        place_at(threshold, 3, "left")
+        threshold:SetPoint("TOPLEFT", enable_panel, "BOTTOMLEFT", 0, -24)
 
-        -- (No demo sliders)
+        -- Show Bar Section Outlines Checkbox
+        local outlines_container, outlines_btn, _ = addon.CreateCheckbox(
+            p,
+            "Show Bar Section Outlines",
+            Ls_Tweeks_DB.show_bar_section_outlines or false,
+            function(is_checked)
+                Ls_Tweeks_DB.show_bar_section_outlines = is_checked
+                if addon.aura_frames and addon.aura_frames.refresh_section_outlines then
+                    addon.aura_frames.refresh_section_outlines()
+                end
+            end
+        )
+        outlines_container:SetPoint("TOPLEFT", threshold, "BOTTOMLEFT", 0, -18)
+        M.controls.show_bar_section_outlines_checkbox = outlines_btn
 
         -- Keep reset panel outside the grid-managed main area.
         local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
