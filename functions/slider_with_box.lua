@@ -93,12 +93,21 @@ function addon.CreateSliderWithBox(name, parent, label_text, min_v, max_v, step,
         end
     end
 
+    local debounce_timer = nil
+    local function debounced_callback()
+        if debounce_timer then debounce_timer:Cancel() end
+        debounce_timer = C_Timer.NewTimer(0.1, function()
+            debounce_timer = nil
+            run_callback()
+        end)
+    end
+
     slider:SetScript("OnValueChanged", function(self, value)
         if db_table then
             db_table[db_key] = value
         end
         eb:SetText(format_display_value(value))
-        run_callback()
+        debounced_callback()
     end)
 
     eb:SetScript("OnEnterPressed", function(self)

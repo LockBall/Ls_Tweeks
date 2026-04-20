@@ -154,14 +154,10 @@ function M.BuildSettings(parent)
         -- Short Buff Threshold slider
         local threshold_debounce = nil
         local threshold = addon.CreateSliderWithBox(addon_name.."Tslider", p, "Short Buff Threshold", 10, 300, 10, M.db, "short_threshold", M.defaults, function()
-            if threshold_debounce then threshold_debounce:Cancel() end
-            threshold_debounce = C_Timer.NewTimer(0.1, function()
-                threshold_debounce = nil
-                for k, v in pairs(M.frames) do
-                    local cat = k:sub(6)
-                    M.update_auras(v, k, "move_"..cat, "timer_"..cat, "bg_"..cat, "scale_"..cat, "spacing_"..cat, k == "show_debuff" and "HARMFUL" or "HELPFUL")
-                end
-            end)
+            for k, v in pairs(M.frames) do
+                local cat = k:sub(6)
+                M.update_auras(v, k, "move_"..cat, "timer_"..cat, "bg_"..cat, "scale_"..cat, "spacing_"..cat, k == "show_debuff" and "HARMFUL" or "HELPFUL")
+            end
         end)
         threshold:SetPoint("TOPLEFT", enable_panel, "BOTTOMLEFT", 0, -24)
 
@@ -247,10 +243,7 @@ function M.BuildSettings(parent)
 
 
         local function create_bound_checkbox(label, db_key, row, column, on_change, control_key, extra_on_uncheck, extra_on_check)
-            local container, checkbox, _ = addon.CreateCheckbox(
-                p,
-                label,
-                M.db[db_key],
+            local container, checkbox, _ = addon.CreateCheckbox(p, label, M.db[db_key],
                 function(is_checked)
                     M.db[db_key] = is_checked
                     if is_checked and extra_on_check then
