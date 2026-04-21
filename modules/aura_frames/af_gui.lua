@@ -219,6 +219,9 @@ function M.BuildSettings(parent)
                 y = y - (grid.row_heights[i] or grid.row_heights[#grid.row_heights])
             end
             local y_offset = grid.offsets[slot or "default"] or 0
+            if opts.y_offset then
+                y_offset = y_offset + opts.y_offset
+            end
             local col_end = grid[(type(column)=="number" and (column+1)) or (column.."_end")] or nil
             local width = opts.width or (control.GetWidth and control:GetWidth() or 0)
             if opts.align == "center" and col_end then
@@ -375,7 +378,7 @@ function M.BuildSettings(parent)
                 120 -- reduced width
             )
 
-            place_at(timer_font, 5, 2, nil, {align="left", width=120})
+            place_at(timer_font, 5, 2, nil, {align="left", width=120, y_offset=-15})
             M.controls["timer_number_font_dropdown_"..cat] = timer_font
 
             local font_size_slider = addon.CreateSliderWithBox(addon_name..cat.."TimerFontSizeSlider", p, "Font Size", 8, 14, 0.5, M.db, "timer_number_font_size_"..cat,

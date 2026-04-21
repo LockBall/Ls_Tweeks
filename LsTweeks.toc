@@ -33,7 +33,8 @@ functions\dropdown.lua
 
 # --- Modules ---
 modules\about.lua
-modules\settings.lua
+modules\settings\st_defaults.lua
+modules\settings\st_main.lua
 modules\combat_text.lua
 
 # --- Aura Frames Module ---

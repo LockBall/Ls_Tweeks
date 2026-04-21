@@ -43,20 +43,61 @@ media/fonts/     — monospace TTFs: SourceCodePro, Inconsolata, JetBrainsMono, 
 - **Deferred batching:** UNIT_AURA events are bucketed at 0.05s; timer ticker runs at 0.1s.
 - **InCombatLockdown:** defer layout changes; never call protected WoW API during combat.
 
+## Layout Rules (critical — violations cause invisible controls)
+- **All widget internals anchor to their own container** — never chain anchors off a sibling inside a factory function.
+- **One SetPoint per anchor direction per frame** — two TOPLEFT calls on the same frame = conflicting constraint, undefined result.
+- **Never call `frame:GetWidth()` at build time** — returns 0 until the frame is rendered; use hardcoded constants for layout math.
+- **External placement is always one `SetPoint` call** — factory functions must NOT call SetPoint themselves if the caller will place them.
+- **`CreateSliderWithBox` has a built-in 0.1s debounce** — do not add an external debounce in the callback.
+
+## Saved Variables — Known Keys
+```
+Ls_Tweeks_DB = {
+  minimap = { hide = bool },
+  open_on_reload = bool,
+  last_open_module = string,       -- last sidebar tab name
+  show_bar_section_outlines = bool,-- debug outline toggle (top-level, not under aura_frames)
+  aura_frames = {
+    last_tab_index = number,       -- last selected category tab (1=General, 2=Static, ...)
+    short_threshold = number,
+    disable_blizz_buffs = bool,
+    disable_blizz_debuffs = bool,
+    -- per-category keys: <setting>_<cat> e.g. show_static, color_debuff, scale_short
+    positions = { static={x,y}, short={x,y}, long={x,y}, debuff={x,y} },
+  }
+}
+```
+
 ## Aura Frame Categories
 Four categories: `static`, `short`, `long`, `debuff`.  
 DB keys follow the pattern `aura_frames.<setting>_<category>` (e.g. `show_static`, `color_debuff`).  
 Positions are stored under `aura_frames.positions.<category>`.
 
+## af_gui.lua Layout System
+Category tabs use a numeric column grid. `place_at(control, row, column, slot, opts)`:
+- Columns are numeric keys in the `grid` table: `grid[1]=0`, `grid[2]=150`, `grid[3]=300`, `grid[4]=450`
+- Column end bounds: `grid["2_end"]=375`, `grid["3_end"]=570`, `grid["4_end"]=760`
+- Row heights are variable: `grid.row_heights = {40, 60, 40, 75, 110, 110}` (6 rows)
+- `opts.align = "center"` centers the control between `grid[col]` and `grid[col+1_end]`
+- `slot` maps to `grid.offsets` for per-type y nudge: `dropdown=8`, `picker=4`, `default=0`
+- General tab uses manual anchoring (no `place_at`); category tabs use `place_at`.
+
 ## UI Shared Controls — Quick Reference
-| Function | Key args |
-|---|---|
-| `CreateCheckbox(parent, label, checked, cb)` | returns container, checkbox, label |
-| `CreateSliderWithBox(name, parent, label, min, max, step, db, key, defaults, cb)` | slider + input + reset |
-| `CreateDropdown(name, parent, label, options, cfg)` | cfg: width, row_height, get_value, on_select |
-| `CreateColorPicker(parent, db, key, has_alpha, label, defaults, cb)` | integrated reset button |
-| `CreateRivetedPanel(parent, w, h, anchorTo, point, x, y, levelOffset)` | returns panel, fontstring |
-| `CreateGlobalReset(parent, db, defaults)` | ARM-code safety reset control |
+| Function | Key args | Notes |
+|---|---|---|
+| `CreateCheckbox(parent, label, checked, cb)` | returns container, checkbox, label | container width is dynamic |
+| `CreateSliderWithBox(name, parent, label, min, max, step, db, key, defaults, cb)` | returns container (130×95) | has built-in 0.1s debounce; `container.slider` exposed |
+| `CreateDropdown(name, parent, label, options, cfg)` | cfg: width, row_height, get_value, on_select | custom popup |
+| `M.CreateListDropdown(name, parent, label, opts, get_val, on_sel, width)` | returns dropdown | af_gui wrapper with font support |
+| `CreateColorPicker(parent, db, key, has_alpha, label, defaults, cb)` | integrated reset | container is 95×45 |
+| `CreateRivetedPanel(parent, w, h, anchorTo, point, x, y, levelOffset)` | returns panel, fontstring | |
+| `CreateGlobalReset(parent, db, defaults)` | ARM-code safety reset | |
+| `CreateStepButtonGroup(parent, height, on_inc, on_dec)` | returns group frame | vertical stack layout |
+
+## Debug Outlines (af_main.lua)
+`Ls_Tweeks_DB.show_bar_section_outlines` toggles 1px borders on aura icon slots.  
+Toggle via `M.refresh_section_outlines()`. Outline textures are tagged `._is_outline = true` for safe removal.  
+Do NOT use `SetParent(nil)` to remove textures — use `Hide()` + `SetTexture(nil)` on tagged textures only.
 
 ## Riveted Panel Style
 Marble background, ornate dialog-frame borders, 4 corner rivet textures. Apply via `addon.ApplyRivetedPanelStyle(frame, opts)` or `addon.AddRivetCorners(frame, inset, offX, offY)`.
