@@ -145,8 +145,9 @@ function addon.init_main_frame()
         end
     end
 
-    -- Every time the main frame is shown, refresh the sidebar to catch new modules
+    -- Every time the main frame is shown, refresh the sidebar and apply saved alpha
     frame:SetScript("OnShow", function()
         RefreshSidebar()
+        if addon.apply_interface_alpha then addon.apply_interface_alpha() end
     end)
 end

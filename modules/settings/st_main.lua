@@ -24,6 +24,18 @@ local STRINGS = {
     minimap_icon_label = "Minimap Icon",
 }
 
+-- Apply saved interface transparency to the main frame — called on every Show
+local function apply_interface_alpha()
+    if not addon.main_frame or not Ls_Tweeks_DB then return end
+    local a = Ls_Tweeks_DB.interface_alpha
+    if not a then return end
+    addon.main_frame:SetBackdropColor(0.06, 0.06, 0.06, a)
+    if addon.main_frame.title_bar    then addon.main_frame.title_bar:SetBackdropColor(0.12, 0.12, 0.12, a) end
+    if addon.main_frame.sidebar      then addon.main_frame.sidebar:SetBackdropColor(0.10, 0.10, 0.10, a) end
+    if addon.main_frame.content_area then addon.main_frame.content_area:SetBackdropColor(0.08, 0.08, 0.08, a) end
+end
+addon.apply_interface_alpha = apply_interface_alpha
+
 -- Build Settings page content
 local function build_settings_page(parent)
     local cfg = UI_CONFIG
@@ -76,23 +88,12 @@ local function build_settings_page(parent)
     reload_container:SetPoint("TOPLEFT", checkbox_container, "BOTTOMLEFT", 0, cfg.section_offset_y)
 
     -- Alpha Slider for Interface Transparency
-    local function apply_alpha()
-        local a = Ls_Tweeks_DB.interface_alpha
-        if not addon.main_frame then return end
-        addon.main_frame:SetBackdropColor(0.06, 0.06, 0.06, a)
-        if addon.main_frame.title_bar   then addon.main_frame.title_bar:SetBackdropColor(0.12, 0.12, 0.12, a) end
-        if addon.main_frame.sidebar     then addon.main_frame.sidebar:SetBackdropColor(0.10, 0.10, 0.10, a) end
-        if addon.main_frame.content_area then addon.main_frame.content_area:SetBackdropColor(0.08, 0.08, 0.08, a) end
-    end
-
     Ls_Tweeks_DB.interface_alpha = Ls_Tweeks_DB.interface_alpha or defaults.interface_alpha
     local alpha_slider = addon.CreateSliderWithBox(
         addon_name.."AlphaSlider", parent, "Interface Transparency", 0.0, 1, 0.05, Ls_Tweeks_DB, "interface_alpha", defaults,
-        apply_alpha
+        apply_interface_alpha
     )
     alpha_slider:SetPoint("TOPLEFT", reload_container, "BOTTOMLEFT", 0, cfg.section_offset_y)
-
-    apply_alpha()
 end
 
 -- Module initializer
@@ -101,6 +102,8 @@ loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" then
         if name ~= addon_name then return end
+        local defaults = addon.module_defaults and addon.module_defaults.st or {}
+        Ls_Tweeks_DB.interface_alpha = Ls_Tweeks_DB.interface_alpha or defaults.interface_alpha
         if addon.register_category then
             addon.register_category(STRINGS.category_name, build_settings_page)
         end
