@@ -325,8 +325,7 @@ function M.BuildSettings(parent)
         -- Test Aura
         create_bound_checkbox("Test Aura", test_key, 1, 2, update, nil, nil, check_enable_frame)
 
-        -- Growth Direction
-        place_at(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), 1, 4, "dropdown")
+        -- Growth Direction (moved to row 5, col 4)
         add_row_separator(1)
 
         -- Row 2
@@ -408,19 +407,27 @@ function M.BuildSettings(parent)
             place_at(font_size_slider, 4, 3)
             M.controls["timer_number_font_size_slider_"..cat] = font_size_slider
         end
+
         add_row_separator(4)
 
-        -- Row 5: Scale and Spacing sliders
+
+        -- Row 5: Scale, Spacing, Growth Direction
         local scale_slider = create_bound_slider("Scale", "Scale", 0.5, 2.5, 0.01, data.scale_key, update)
         place_at(scale_slider, 5, 1)
 
         local spacing_slider = create_bound_slider("Spacing", "Spacing", 0, 20, 0.1, data.spacing_key)
         place_at(spacing_slider, 5, 2)
 
+        -- Growth Direction dropdown now in row 3, col 4, vertically centered
+        place_at(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), 3, 4, "dropdown", { y_offset = -math.floor((grid.row_heights[3] - 24) / 2) })
+
+        add_row_separator(5)
+
+        -- Row 6: Max Icons slider
         local max_icons_slider = create_bound_slider("PoolSlider", "Max Icons", 5, 40, 1, "max_icons_"..cat, function()
             print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
         end)
-        place_at(max_icons_slider, 5, 3)
+        place_at(max_icons_slider, 6, 3)
     end
 
     for i, data in ipairs(tab_data) do
