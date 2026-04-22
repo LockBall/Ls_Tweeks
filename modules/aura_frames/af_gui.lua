@@ -294,6 +294,21 @@ function M.BuildSettings(parent)
 
         -- Row 1
 
+        local function uncheck_test_aura()
+            if M.db[test_key] then
+                M.db[test_key] = false
+                local test_cb = M.controls[test_key]
+                if test_cb and test_cb.SetChecked then test_cb:SetChecked(false) end
+            end
+        end
+        local function check_enable_frame()
+            if not M.db[data.show_key] then
+                M.db[data.show_key] = true
+                local enable_cb = M.controls[data.show_key]
+                if enable_cb and enable_cb.SetChecked then enable_cb:SetChecked(true) end
+            end
+        end
+
         -- move mode
         local _, move_cb = create_bound_checkbox("Move Mode", data.move_key, 1, 1)
 
@@ -313,44 +328,24 @@ function M.BuildSettings(parent)
             M.db["width_"..cat] = dWidth
             move_cb:SetChecked(dMove)
             local f = M.frames[data.show_key]
-
             if f then
                 f:ClearAllPoints()
-                f:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+                f:SetPoint("LEFT", UIParent, "CENTER", dPos.x, dPos.y)
                 f:SetWidth(dWidth)
                 update()
             end
+            local xs = M.controls["x_pos_slider_"..cat]
+            local ys = M.controls["y_pos_slider_"..cat]
+            if xs and xs.slider then xs.slider:SetValue(dPos.x) end
+            if ys and ys.slider then ys.slider:SetValue(dPos.y) end
         end)
 
         -- Test Aura
         create_bound_checkbox("Test Aura", test_key, 1, 2, update, nil, nil, check_enable_frame)
 
-        -- Growth Direction (moved to row 5, col 4)
         add_row_separator(1)
 
         -- Row 2
-
-        -- Enable Frame
-        local cat = data.show_key:sub(6)
-        local test_key = "test_aura_"..cat
-        local function uncheck_test_aura()
-            if M.db[test_key] then
-                M.db[test_key] = false
-                local test_cb = M.controls[test_key]
-                if test_cb and test_cb.SetChecked then
-                    test_cb:SetChecked(false)
-                end
-            end
-        end
-        local function check_enable_frame()
-            if not M.db[data.show_key] then
-                M.db[data.show_key] = true
-                local enable_cb = M.controls[data.show_key]
-                if enable_cb and enable_cb.SetChecked then
-                    enable_cb:SetChecked(true)
-                end
-            end
-        end
         create_bound_checkbox("Enable Frame", data.show_key, 2, 1, nil, nil, uncheck_test_aura)
 
         -- Frame background
@@ -427,7 +422,7 @@ function M.BuildSettings(parent)
             local f = M.frames[data.show_key]
             if f and pos then
                 f:ClearAllPoints()
-                f:SetPoint("CENTER", UIParent, "CENTER", pos.x or 0, pos.y or 0)
+                f:SetPoint("TOPLEFT", UIParent, "CENTER", pos.x or 0, pos.y or 0)
             end
         end
 
@@ -441,6 +436,7 @@ function M.BuildSettings(parent)
         )
         x_slider.slider:HookScript("OnValueChanged", update_frame_position)
         place_at(x_slider, 5, 3)
+        M.controls["x_pos_slider_"..cat] = x_slider
 
         -- Y Position slider
         local y_slider = addon.CreateSliderWithBox(
@@ -452,6 +448,7 @@ function M.BuildSettings(parent)
         )
         y_slider.slider:HookScript("OnValueChanged", update_frame_position)
         place_at(y_slider, 5, 4)
+        M.controls["y_pos_slider_"..cat] = y_slider
 
         -- Growth Direction dropdown now in row 3, col 4, vertically centered
         place_at(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), 3, 4, "dropdown", { y_offset = -math.floor((grid.row_heights[3] - 24) / 2) })
@@ -463,14 +460,15 @@ function M.BuildSettings(parent)
         local function sync_xy_sliders_to_frame()
             local f = M.frames[data.show_key]
             if not (f and x_slider and y_slider and x_slider.slider and y_slider.slider) then return end
-            local cx, cy = f:GetCenter()
             local ucx, ucy = UIParent:GetCenter()
-            if cx and cy and ucx and ucy then
-                local x = math.floor(cx - ucx + 0.5)
-                local y = math.floor(cy - ucy + 0.5)
+            local left = f:GetLeft()
+            local top  = f:GetTop()
+            if left and top then
+                local x = math.floor(left - ucx + 0.5)
+                local y = math.floor(top  - ucy + 0.5)
                 M.db.positions[cat].x = x
                 M.db.positions[cat].y = y
-                M.db.positions[cat].point = "CENTER"
+                M.db.positions[cat].point = "TOPLEFT"
                 x_slider.slider:SetValue(x)
                 y_slider.slider:SetValue(y)
             end
@@ -490,7 +488,24 @@ function M.BuildSettings(parent)
             end
         end
 
-        -- Row 6: Max Icons slider
+        -- Row 6: Width slider + Max Icons slider
+        local width_slider = addon.CreateSliderWithBox(
+            addon_name..cat.."WidthSlider",
+            p,
+            "Width",
+            180, 800, 1,
+            M.db, "width_"..cat, M.defaults
+        )
+        width_slider.slider:HookScript("OnValueChanged", function(_, value)
+            local f = M.frames[data.show_key]
+            if not f then return end
+            -- LEFT anchor keeps the left edge fixed; just set width and redraw.
+            f:SetWidth(math.floor(value + 0.5))
+            update()
+        end)
+        place_at(width_slider, 6, 1)
+        M.controls["width_slider_"..cat] = width_slider
+
         local max_icons_slider = create_bound_slider("PoolSlider", "Max Icons", 5, 40, 1, "max_icons_"..cat, function()
             print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
         end)

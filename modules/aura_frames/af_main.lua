@@ -11,39 +11,34 @@ local function is_outline_enabled()
     return Ls_Tweeks_DB and Ls_Tweeks_DB.show_bar_section_outlines
 end
 
--- Draw a simple 1px border using textures; used for debugging section boundaries in bar mode.
+-- bar mode, section debug border. Draw a simple 1px border using textures
+
 local function add_debug_outline(frame, r, g, b, a)
-    if not is_outline_enabled() then return end
-    if not frame then return end
+    if not is_outline_enabled() or not frame then return end
     local t = 1
-
-    local top = frame:CreateTexture(nil, "OVERLAY")
-    top:SetColorTexture(r, g, b, a)
-    top:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-    top:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
-    top:SetHeight(t)
-    top._is_outline = true
-
-    local bottom = frame:CreateTexture(nil, "OVERLAY")
-    bottom:SetColorTexture(r, g, b, a)
-    bottom:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
-    bottom:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    bottom:SetHeight(t)
-    bottom._is_outline = true
-
-    local left = frame:CreateTexture(nil, "OVERLAY")
-    left:SetColorTexture(r, g, b, a)
-    left:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-    left:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
-    left:SetWidth(t)
-    left._is_outline = true
-
-    local right = frame:CreateTexture(nil, "OVERLAY")
-    right:SetColorTexture(r, g, b, a)
-    right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
-    right:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    right:SetWidth(t)
-    right._is_outline = true
+    -- Remove any existing outline textures first (avoid stacking)
+    local regions = { frame:GetRegions() }
+    for _, region in ipairs(regions) do
+        if region and region._is_outline then
+            region:Hide()
+            region:SetTexture(nil)
+        end
+    end
+    -- Draw new outline using a loop for each side
+    local outline_defs = {
+        { points = { {"TOPLEFT", 0, 0}, {"TOPRIGHT", 0, 0} }, size = { "Height", t } },
+        { points = { {"BOTTOMLEFT", 0, 0}, {"BOTTOMRIGHT", 0, 0} }, size = { "Height", t } },
+        { points = { {"TOPLEFT", 0, 0}, {"BOTTOMLEFT", 0, 0} }, size = { "Width", t } },
+        { points = { {"TOPRIGHT", 0, 0}, {"BOTTOMRIGHT", 0, 0} }, size = { "Width", t } },
+    }
+    for _, def in ipairs(outline_defs) do
+        local tex = frame:CreateTexture(nil, "OVERLAY")
+        tex:SetColorTexture(r, g, b, a)
+        tex:SetPoint(def.points[1][1], frame, def.points[1][1], def.points[1][2], def.points[1][3])
+        tex:SetPoint(def.points[2][1], frame, def.points[2][1], def.points[2][2], def.points[2][3])
+        tex["Set"..def.size[1]](tex, def.size[2])
+        tex._is_outline = true
+    end
 end
 
 -- Called when the outlines setting changes; refresh all aura frames
@@ -62,9 +57,14 @@ function M.refresh_section_outlines()
                     end
                 end
                 if is_outline_enabled() then
-                    add_debug_outline(obj.stack_slot, 1, 0.4, 0, 0.9)
-                    add_debug_outline(obj.name_slot, 0, 0.6, 1, 0.9)
-                    add_debug_outline(obj.timer_slot, 0, 1, 0.3, 0.9)
+                    local slot_colors = {
+                        {obj.stack_slot, 1, 0.4, 0, 0.9},
+                        {obj.name_slot, 0, 0.6, 1, 0.9},
+                        {obj.timer_slot, 0, 1, 0.3, 0.9},
+                    }
+                    for _, v in ipairs(slot_colors) do
+                        add_debug_outline(v[1], v[2], v[3], v[4], v[5])
+                    end
                 end
             end
         end
@@ -213,9 +213,9 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     local pos = M.db.positions and M.db.positions[category]
     if pos then
         frame:ClearAllPoints()
-        frame:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
+        frame:SetPoint("TOPLEFT", UIParent, "CENTER", pos.x, pos.y)
     else
-        frame:SetPoint("CENTER", UIParent, "CENTER", 0, is_debuff and -100 or 100)
+        frame:SetPoint("TOPLEFT", UIParent, "CENTER", -100, is_debuff and -25 or 75)
     end
     
     -- TITLE BAR LOGIC
@@ -245,14 +245,11 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         tb:SetScript("OnDragStart", function() parent:StartMoving() end)
         tb:SetScript("OnDragStop", function()
             parent:StopMovingOrSizing()
-            local cx, cy = parent:GetCenter()
             local ucx, ucy = UIParent:GetCenter()
-            local x = math.floor(cx - ucx + 0.5)
-            local y = math.floor(cy - ucy + 0.5)
             local pos = M.db.positions[parent.category]
-            pos.point = "CENTER"
-            pos.x = x
-            pos.y = y
+            pos.point = "TOPLEFT"
+            pos.x = math.floor(parent:GetLeft() - ucx + 0.5)
+            pos.y = math.floor(parent:GetTop()  - ucy + 0.5)
         end)
         return tb
     end
@@ -284,6 +281,8 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
             frame:SetWidth(clamped_width)
         end
         M.db["width_"..category] = clamped_width
+        local ws = M.controls and M.controls["width_slider_"..category]
+        if ws and ws.slider then ws.slider:SetValue(clamped_width) end
         local params = frame.update_params
         if params then
             M.update_auras(frame, params.show_key, params.move_key, params.timer_key, params.bg_key, params.scale_key, params.spacing_key, params.filter)
@@ -513,19 +512,22 @@ loader:SetScript("OnEvent", function(self, event, name)
         M.create_aura_frame("show_debuff",  "move_debuff",  "timer_debuff", "bg_debuff",    "scale_debuff", "spacing_debuff",   "Debuffs",  true)
 
         -- Migrate any stored positions that are not CENTER-relative.
-        -- Old saves used whatever anchor WoW returned after drag (usually TOPLEFT).
-        -- Defer one frame so GetCenter() returns valid screen coordinates.
+        -- Migrate any stored positions to TOPLEFT-anchor format.
+        -- Defer one frame so GetLeft()/GetTop() return valid screen coordinates.
         C_Timer.After(0, function()
             local ucx, ucy = UIParent:GetCenter()
             for show_key, frame in pairs(M.frames) do
                 local cat = show_key:sub(6)
                 local pos = M.db.positions and M.db.positions[cat]
-                if pos and pos.point ~= "CENTER" then
-                    local cx, cy = frame:GetCenter()
-                    if cx and cy then
-                        pos.x = math.floor(cx - ucx + 0.5)
-                        pos.y = math.floor(cy - ucy + 0.5)
-                        pos.point = "CENTER"
+                if pos and pos.point ~= "TOPLEFT" then
+                    local left = frame:GetLeft()
+                    local top  = frame:GetTop()
+                    if left and top then
+                        pos.x = math.floor(left - ucx + 0.5)
+                        pos.y = math.floor(top  - ucy + 0.5)
+                        pos.point = "TOPLEFT"
+                        frame:ClearAllPoints()
+                        frame:SetPoint("TOPLEFT", UIParent, "CENTER", pos.x, pos.y)
                     end
                 end
             end

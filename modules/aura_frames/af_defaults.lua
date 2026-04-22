@@ -123,11 +123,12 @@ M.defaults = {
     timer_number_font_bold_debuff = false,
     
     -- POSITIONS
+    -- pos.x = left edge offset from screen center; pos.y = top edge offset from screen center
     positions = {
-        static = { point = "CENTER", x = 0, y = 150 },
-        short  = { point = "CENTER", x = 0, y = 100 },
-        long   = { point = "CENTER", x = 0, y = 50 },
-        debuff = { point = "CENTER", x = 0, y = -50 },
+        static = { point = "TOPLEFT", x = -100, y = 175 },
+        short  = { point = "TOPLEFT", x = -100, y = 125 },
+        long   = { point = "TOPLEFT", x = -100, y =  75 },
+        debuff = { point = "TOPLEFT", x = -100, y = -25 },
     }
 }
 

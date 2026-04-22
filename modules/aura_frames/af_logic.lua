@@ -1298,13 +1298,6 @@ local function set_height_for_growth(self, new_height, growth)
 
     self:ClearAllPoints()
     self:SetPoint(point, relative_to or UIParent, relative_point, x, y)
-
-    if M.db and M.db.positions and self.category then
-        local pos = M.db.positions[self.category]
-        pos.point = point
-        pos.x = x
-        pos.y = y
-    end
 end
 
 -- ============================================================================
@@ -1329,7 +1322,15 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     local sort_mode = db["sort_"..category] or "timeleft"
     local preview_enabled = db["test_aura_"..category]
 
-    self:SetScale(db[scale_key] or 1.0)
+    local scale = db[scale_key] or 1.0
+    self:SetScale(scale)
+    local _pos = M.db.positions and M.db.positions[category]
+    if _pos then
+        self:ClearAllPoints()
+        -- Divide offsets by scale: SetPoint interprets them in the frame's own coordinate
+        -- space, so screen-pixel coordinates must be divided by scale to stay in place.
+        self:SetPoint("TOPLEFT", UIParent, "CENTER", (_pos.x or 0) / scale, (_pos.y or 0) / scale)
+    end
 
     if not self._layout_cache
         or (self._layout_cache.frame_width ~= frame_width
@@ -1402,10 +1403,12 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
             local bar_row_h = lc and lc.row_height or 18
             new_height = display_count * (bar_row_h + spacing) + 12
         elseif lc and (lc.growth == "DOWN" or lc.growth == "UP") then
-            new_height = display_count * (32 + spacing + 12) + 6
+            local isz = (lc and lc.icon_size) or 32
+            new_height = display_count * (isz + spacing + 12) + 6
         elseif lc and lc.icons_per_row then
+            local isz = (lc and lc.icon_size) or 32
             local rows = math_ceil(display_count / lc.icons_per_row)
-            new_height = rows * (32 + spacing + 12) + 6
+            new_height = rows * (isz + spacing + 12) + 6
         else
             new_height = display_count * 44
         end
