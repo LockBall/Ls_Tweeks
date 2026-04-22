@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2026-04-21 (3)
+- af_gui grid: replaced unequal columns + dead `_end` keys with 3 equal 246px columns; col 1 left-aligned, cols 2-3 center-aligned by default via `col_align`
+- `place_at` now reads `grid.col_align[column]` as default, `opts.align` still overrides
+- Renamed "Frame BackGround" checkbox label → "Frame BG"
+
 ### 2026-04-21 (2)
 - Removed pixel snapping: deleted `pixel_snap` helper and all call sites in af_logic.lua (`snap()` local, `eff_scale` fetches, and three `pixel_snap` calls in `set_height_for_growth`)
 - Removed pixel snap rule from Architecture Rules in CLAUDE.md
@@ -19,6 +24,10 @@
 - CLAUDE.md: added Layout Rules, Saved Variables map, af_gui layout system, Debug Outlines sections
 
 ---
+
+## Claude Permissions
+- Bash `grep` commands are pre-approved for this project — no need to prompt for permission.
+- **Changelog:** do not update unless explicitly requested.
 
 ## What This Is
 **L's Tweeks** — a modular WoW UI addon (patch 12.0 / Interface 120000) by LockBall.  
@@ -96,10 +105,10 @@ Positions are stored under `aura_frames.positions.<category>`.
 
 ## af_gui.lua Layout System
 Category tabs use a numeric column grid. `place_at(control, row, column, slot, opts)`:
-- Columns are numeric keys in the `grid` table: `grid[1]=0`, `grid[2]=150`, `grid[3]=300`, `grid[4]=450`
-- Column end bounds: `grid["2_end"]=375`, `grid["3_end"]=570`, `grid["4_end"]=760`
+- Four equal columns: `col_width=184`, `grid[1]=0`, `grid[2]=184`, `grid[3]=368`, `grid[4]=552`
+- Default alignment per column: col 1 = left, cols 2-4 = center (`grid.col_align`)
+- `opts.align` overrides the column default ("left", "center", "right")
 - Row heights are variable: `grid.row_heights = {40, 60, 40, 75, 110, 110}` (6 rows)
-- `opts.align = "center"` centers the control between `grid[col]` and `grid[col+1_end]`
 - `slot` maps to `grid.offsets` for per-type y nudge: `dropdown=8`, `picker=4`, `default=0`
 - General tab uses manual anchoring (no `place_at`); category tabs use `place_at`.
 

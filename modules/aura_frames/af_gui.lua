@@ -188,18 +188,20 @@ function M.BuildSettings(parent)
         end
 
         -- Grid Layout Configuration (row/column placement for controls)
+        -- col_gap  = distance between column start positions (moves columns apart/together)
+        -- col_width = centering zone within each column (controls how wide the center target is)
+        local col_gap   = 150  -- adjust to spread or compress columns
+        local col_width = 184  -- adjust independently from gap if needed
         local grid = {
-            -- column start x coordinate
             [1] = 0,
-            [2] = 150,
-            [3] = 300,
-            [4] = 450,
-            [2 .. "_end"] = 375,
-            [3 .. "_end"] = 570,
-            [4 .. "_end"] = 760,
+            [2] = col_gap,
+            [3] = col_gap * 2,
+            [4] = col_gap * 3,
+            col_width = col_width,
+            col_align = { "center", "center", "center", "center" },
             row_start = -20,
             --             1   2   3   4   5   6
-            row_heights = {40, 60, 40, 75, 110, 110}, -- variable row heights to accommodate different control sizes (e.g. sliders vs checkboxes)
+            row_heights = {40, 60, 40, 75, 110, 110},
             reset_btn_width = 110,
             offsets = {
                 default = 0,
@@ -209,25 +211,21 @@ function M.BuildSettings(parent)
             content_rows = 6,
         }
 
-        -- Enhanced place_at: supports alignment ("left", "center", "right") and width for centering
         local function place_at(control, row, column, slot, opts)
             opts = opts or {}
+            local align = opts.align or grid.col_align[column] or "left"
             local x = grid[column]
-            -- Calculate Y by summing all previous row heights
             local y = grid.row_start
             for i = 1, (row - 1) do
                 y = y - (grid.row_heights[i] or grid.row_heights[#grid.row_heights])
             end
             local y_offset = grid.offsets[slot or "default"] or 0
-            if opts.y_offset then
-                y_offset = y_offset + opts.y_offset
-            end
-            local col_end = grid[(type(column)=="number" and (column+1)) or (column.."_end")] or nil
+            if opts.y_offset then y_offset = y_offset + opts.y_offset end
             local width = opts.width or (control.GetWidth and control:GetWidth() or 0)
-            if opts.align == "center" and col_end then
-                x = x + math.floor(((col_end - x) - width) / 2)
-            elseif opts.align == "right" and col_end then
-                x = col_end - width
+            if align == "center" then
+                x = x + math.floor((grid.col_width - width) / 2)
+            elseif align == "right" then
+                x = x + grid.col_width - width
             end
             control:SetPoint("TOPLEFT", p, "TOPLEFT", x, y + y_offset)
         end
@@ -332,7 +330,7 @@ function M.BuildSettings(parent)
         create_bound_checkbox("Enable Frame", data.show_key, 2, 1, nil, nil, uncheck_test_aura)
 
         -- Frame background
-        create_bound_checkbox("Frame BackGround", data.bg_key, 2, 2)
+        create_bound_checkbox("Frame BG", data.bg_key, 2, 2)
 
         -- Frame BG color picker (second row, far-right)
         create_bound_color_picker("bg_color_"..cat, true, "Frame BG Color", 2, 3)
@@ -372,7 +370,7 @@ function M.BuildSettings(parent)
                 120 -- reduced width
             )
 
-            place_at(timer_font, 5, 2, nil, {align="left", width=120, y_offset=-15})
+            place_at(timer_font, 5, 2, nil, {width=120, y_offset=-15})
             M.controls["timer_number_font_dropdown_"..cat] = timer_font
 
             local font_size_slider = addon.CreateSliderWithBox(addon_name..cat.."TimerFontSizeSlider", p, "Font Size", 8, 14, 0.5, M.db, "timer_number_font_size_"..cat,
