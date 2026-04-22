@@ -2,7 +2,7 @@ local addon_name, addon = ...
 local M = addon.aura_frames
 
 -- CACHED GLOBALS AND CONSTANTS
-local MAX_POOL_SIZE = 40 -- Default pool size
+local MAX_POOL_SIZE = 20 -- Default pool size
 local MIN_FRAME_WIDTH = 180
 local MIN_FRAME_HEIGHT = 44
 local format = string.format

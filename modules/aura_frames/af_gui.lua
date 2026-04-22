@@ -395,7 +395,7 @@ function M.BuildSettings(parent)
         local spacing_slider = create_bound_slider("Spacing", "Spacing", 0, 20, 0.1, data.spacing_key)
         place_at(spacing_slider, 5, 2)
 
-        local max_icons_slider = create_bound_slider("PoolSlider", "Max Icons", 5, 100, 1, "max_icons_"..cat, function()
+        local max_icons_slider = create_bound_slider("PoolSlider", "Max Icons", 5, 40, 1, "max_icons_"..cat, function()
             print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
         end)
         place_at(max_icons_slider, 5, 3)
