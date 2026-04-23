@@ -11,6 +11,12 @@ local wipe = wipe
 local issecretvalue = issecretvalue  -- WoW built-in: true if value is tainted/secret
 local C_UnitAuras = C_UnitAuras     -- localize for frequent hot-path calls
 local format = format                -- WoW global alias for string.format
+local table_sort = table.sort
+local SORT_RULE_DEFAULT    = Enum.UnitAuraSortRule.Default
+local SORT_RULE_EXPIRATION = Enum.UnitAuraSortRule.ExpirationOnly
+local SORT_RULE_NAME       = Enum.UnitAuraSortRule.NameOnly
+local SORT_DIR_NORMAL      = Enum.UnitAuraSortDirection.Normal
+local TIMER_DIR_REMAINING  = Enum.StatusBarTimerDirection and Enum.StatusBarTimerDirection.RemainingTime
 
 addon.aura_frames = addon.aura_frames or {}
 local M = addon.aura_frames
@@ -64,7 +70,7 @@ local function get_bar_layout_params(timer_font_size)
     -- Dynamically scale timer slot width: enough for 4 wide digits at large font sizes
     local min_width = 36
     local scale_factor = 2.7 -- empirically fits 4 digits at font size 14
-    local timer_slot_width = math_max(min_width, math.ceil(timer_font_size * scale_factor))
+    local timer_slot_width = math_max(min_width, math_ceil(timer_font_size * scale_factor))
 
     return {
         -- Outer bar row geometry and frame inset.
@@ -854,13 +860,13 @@ end
 local function render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, max_limit, filter, sort_mode, show_timer_text)
     local bar_bg_alpha = M.BAR_BG_ALPHA_DEFAULT
     -- Resolve sort parameters for GetUnitAuraInstanceIDs
-    local sort_rule = Enum.UnitAuraSortRule.Default
-    local sort_dir  = Enum.UnitAuraSortDirection.Normal
+    local sort_rule = SORT_RULE_DEFAULT
+    local sort_dir  = SORT_DIR_NORMAL
     if sort_mode == "timeleft" then
-        sort_rule = Enum.UnitAuraSortRule.ExpirationOnly
+        sort_rule = SORT_RULE_EXPIRATION
         -- Normal = ascending expiration time = soonest to expire first (most urgent)
     elseif sort_mode == "name" then
-        sort_rule = Enum.UnitAuraSortRule.NameOnly
+        sort_rule = SORT_RULE_NAME
     end
 
     local wow_filter = (filter == "HELPFUL") and "HELPFUL" or "HARMFUL"
@@ -885,7 +891,7 @@ local function render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, ma
     else
         -- Fallback: iterate map directly (sorted_ids nil = API unavailable)
         for _, entry in pairs(aura_map) do list[#list + 1] = entry end
-        table.sort(list, function(a, b) return get_entry_sort_id(a) < get_entry_sort_id(b) end)
+        table_sort(list, function(a, b) return get_entry_sort_id(a) < get_entry_sort_id(b) end)
     end
 
     -- Short frame ordering: stable per-aura order key so stack updates don't
@@ -917,7 +923,7 @@ local function render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, ma
             end
         end
 
-        table.sort(list, function(a, b)
+        table_sort(list, function(a, b)
             local aa = a._short_order or 0
             local bb = b._short_order or 0
             if aa == bb then
@@ -1036,8 +1042,8 @@ local function render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, ma
                         obj.time_text:SetText("")
                     end
                 end
-                if bar_mode and obj.bar and obj.bar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection then
-                    obj.bar:SetTimerDuration(live_duration, nil, Enum.StatusBarTimerDirection.RemainingTime)
+                if bar_mode and obj.bar and obj.bar.SetTimerDuration and TIMER_DIR_REMAINING then
+                    obj.bar:SetTimerDuration(live_duration, nil, TIMER_DIR_REMAINING)
                 end
             elseif rem > 0 then
                 if show_timer_text then
@@ -1046,8 +1052,8 @@ local function render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, ma
                     obj.time_text:SetText("")
                 end
                 if bar_mode then
-                    if obj.bar and obj.bar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection then
-                        obj.bar:SetTimerDuration(live_duration, nil, Enum.StatusBarTimerDirection.RemainingTime)
+                    if obj.bar and obj.bar.SetTimerDuration and TIMER_DIR_REMAINING then
+                        obj.bar:SetTimerDuration(live_duration, nil, TIMER_DIR_REMAINING)
                     else
                         obj.bar:SetMinMaxValues(0, entry.duration > 0 and entry.duration or rem)
                         obj.bar:SetValue(rem)
