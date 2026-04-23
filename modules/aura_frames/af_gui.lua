@@ -28,7 +28,7 @@ function M.CreateListDropdown(name, parent, labelText, options, get_value, on_se
         end
     end
 
-    return M._CreateDropdown(name, parent, labelText, options, {
+    return addon.CreateDropdown(name, parent, labelText, options, {
         width = width or 180,
         get_value = get_value,
         on_select = function(value)
@@ -40,10 +40,6 @@ function M.CreateListDropdown(name, parent, labelText, options, get_value, on_se
     })
 end
 
-function M._CreateDropdown(name, parent, labelText, options, cfg)
-    return addon.CreateDropdown(name, parent, labelText, options, cfg)
-end
-
 -- growth direction dropdown
 -- Replaces the deprecated UIDropDownMenu API with a custom popup list.
 function M.CreateDirectionDropdown(name, parent, labelText, db_key, callback)
@@ -53,7 +49,7 @@ function M.CreateDirectionDropdown(name, parent, labelText, db_key, callback)
         options[#options + 1] = { value = dir, text = dir }
     end
 
-    return M._CreateDropdown(name, parent, labelText, options, {
+    return addon.CreateDropdown(name, parent, labelText, options, {
         width = 106,
         get_value = function()
             return M.db[db_key] or "DOWN"
@@ -229,11 +225,10 @@ function M.BuildSettings(parent)
             y = y - 24
 
             -- Wire expand/collapse
-            local captured_child_btns = child_btns
             arrow_btn:SetScript("OnClick", function()
                 expanded[cat] = not expanded[cat]
                 arrow_fs:SetText(expanded[cat] and "-" or "+")
-                for _, cb in ipairs(captured_child_btns) do
+                for _, cb in ipairs(child_btns) do
                     cb:SetShown(expanded[cat])
                 end
             end)
@@ -266,16 +261,6 @@ function M.BuildSettings(parent)
     end
 
     local function build_general_tab(p)
-        local function refresh_all_category_frames()
-            for _, frame in pairs(M.frames) do
-                if frame and frame.update_params then
-                    local params = frame.update_params
-                    M.update_auras(frame, params.show_key, params.move_key, params.timer_key, params.bg_key, params.scale_key, params.spacing_key, params.filter)
-                end
-            end
-        end
-
-
         -- Manual layout for General tab
 
         -- Blizzard Buff & Debuff Enable Frames Section
@@ -342,7 +327,7 @@ function M.BuildSettings(parent)
 
         -- reset panel
         local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
-        resetPanel:SetPoint("BOTTOM", p, "BOTTOM", 0, -50)
+        resetPanel:SetPoint("TOPLEFT", outlines_container, "BOTTOMLEFT", 0, -16)
     end
 
     build_category_tab = function(p, data)
@@ -564,10 +549,10 @@ function M.BuildSettings(parent)
         add_row_separator(1)
 
         -- Row 2
-        local enable_frame_container = select(1, create_bound_checkbox("Enable Frame", data.show_key, 2, 1, nil, nil, uncheck_test_aura))
+        local enable_frame_container = create_bound_checkbox("Enable Frame", data.show_key, 2, 1, nil, nil, uncheck_test_aura)
 
         -- Test Aura: stacked below Enable Frame in the same cell
-        local test_aura_container = select(1, create_bound_checkbox("Test Aura", test_key, 2, 1, update, nil, nil, check_enable_frame))
+        local test_aura_container = create_bound_checkbox("Test Aura", test_key, 2, 1, update, nil, nil, check_enable_frame)
         test_aura_container:ClearAllPoints()
         test_aura_container:SetPoint("TOPLEFT", enable_frame_container, "BOTTOMLEFT", 0, 0)
 
@@ -587,12 +572,12 @@ function M.BuildSettings(parent)
 
         -- Row 4: Timer Text, Font & Font Size
         if cat ~= "static" then
-            local timer_text_container = select(1, create_bound_checkbox("Timer Text", data.timer_key, 4, 1))
+            local timer_text_container = create_bound_checkbox("Timer Text", data.timer_key, 4, 1)
 
-            local timer_bold_container = select(1, create_bound_checkbox("Timer Bold", "timer_number_font_bold_"..cat, 4, 1, function()
+            local timer_bold_container = create_bound_checkbox("Timer Bold", "timer_number_font_bold_"..cat, 4, 1, function()
                 if M.apply_number_font_to_all then M.apply_number_font_to_all() end
                 update()
-            end))
+            end)
             timer_bold_container:ClearAllPoints()
             timer_bold_container:SetPoint("TOPLEFT", timer_text_container, "BOTTOMLEFT", 0, -4)
 
@@ -697,7 +682,7 @@ function M.BuildSettings(parent)
 
         local p = CreateFrame("Frame", nil, parent)
         p:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -80)
-        p:SetSize(parent:GetWidth() - 20, 50)  -- tab content panel: width fills parent, height controls grid/tree list visible area
+        p:SetSize(741, 50)  -- tab content panel: 925 frame - 12 B.l - 140 sidebar - 12 B.r - 20 margin
         p:Hide()
 
         if data.is_general then
@@ -727,14 +712,14 @@ end
 function M.sync_general_controls_from_db()
     if not M.controls or not M.db then return end
 
-    local buffs = M.controls["disable_blizz_buffs"]
+    local buffs = M.controls["enable_blizz_buffs"]
     if buffs and buffs.SetChecked then
-        buffs:SetChecked(M.db.disable_blizz_buffs)
+        buffs:SetChecked(not M.db.disable_blizz_buffs)
     end
 
-    local debuffs = M.controls["disable_blizz_debuffs"]
+    local debuffs = M.controls["enable_blizz_debuffs"]
     if debuffs and debuffs.SetChecked then
-        debuffs:SetChecked(M.db.disable_blizz_debuffs)
+        debuffs:SetChecked(not M.db.disable_blizz_debuffs)
     end
 
     for _, cat in ipairs({ "short", "long", "debuff" }) do
