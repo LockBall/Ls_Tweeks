@@ -40,6 +40,12 @@ local function create_main_frame()
     title_bar:SetHeight(26)
     title_bar:SetPoint("TOPLEFT",  frame, "TOPLEFT",  B.l,  -B.t)
     title_bar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -B.r, -B.t)
+    local title_bar_line = title_bar:CreateTexture(nil, "BACKGROUND")
+    title_bar_line:SetHeight(1)
+    title_bar_line:SetColorTexture(0.4, 0.4, 0.4, 0.8)
+    title_bar_line:SetPoint("BOTTOMLEFT",  title_bar, "BOTTOMLEFT",  0, 0)
+    title_bar_line:SetPoint("BOTTOMRIGHT", title_bar, "BOTTOMRIGHT", 0, 0)
+
     title_bar:EnableMouse(true)
     title_bar:RegisterForDrag("LeftButton")
     title_bar:SetScript("OnDragStart", function() frame:StartMoving() end)
@@ -71,10 +77,16 @@ local function create_main_frame()
     -- SIDEBAR (Left)
     local sidebar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     sidebar:SetPoint("TOPLEFT",    frame, "TOPLEFT",  B.l, -(B.t + 26))
-    sidebar:SetPoint("BOTTOMLEFT", frame,     "BOTTOMLEFT",    B.l, B.b)
+    sidebar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", B.l, B.b)
     sidebar:SetWidth(140)
     sidebar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
     sidebar:SetBackdropColor(0.10, 0.10, 0.10, 0.9)
+    local sidebar_line = sidebar:CreateTexture(nil, "BACKGROUND")
+    sidebar_line:SetWidth(1)
+    sidebar_line:SetColorTexture(0.4, 0.4, 0.4, 0.8)
+    sidebar_line:SetPoint("TOPRIGHT",    sidebar, "TOPRIGHT",    0, 0)
+    sidebar_line:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", 0, 0)
+
     frame.sidebar = sidebar
 
     -- CONTENT AREA (Right)
@@ -85,6 +97,36 @@ local function create_main_frame()
     content_area:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
     content_area:SetFrameLevel(frame:GetFrameLevel() + 1)
     frame.content_area = content_area
+
+    -- COLLAPSE BUTTON
+    local collapsed      = false
+    local full_height    = select(2, frame:GetSize())
+    local collapsed_height = B.t + 26 + B.b  -- border top + title bar + border bottom
+
+    local collapse_btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    collapse_btn:SetFrameLevel(title_bar:GetFrameLevel() + 1)
+    collapse_btn:SetSize(25, 25)
+    collapse_btn:SetPoint("RIGHT", close_button, "LEFT", -5, 0)
+    collapse_btn:SetNormalFontObject("GameFontNormalLarge")
+    collapse_btn:GetFontString():SetText("_")
+    if collapse_btn:GetNormalTexture()   then collapse_btn:GetNormalTexture():SetVertexColor(0.9, 0.9, 0.9) end
+    if collapse_btn:GetPushedTexture()   then collapse_btn:GetPushedTexture():SetVertexColor(0.6, 0.6, 0.6) end
+    if collapse_btn:GetHighlightTexture() then collapse_btn:GetHighlightTexture():SetVertexColor(0.8, 0.8, 0.8) end
+    collapse_btn:SetScript("OnClick", function()
+        collapsed = not collapsed
+        if collapsed then
+            full_height = select(2, frame:GetSize())
+            frame:SetHeight(collapsed_height)
+            sidebar:Hide()
+            content_area:Hide()
+            collapse_btn:GetFontString():SetText("□")
+        else
+            frame:SetHeight(full_height)
+            sidebar:Show()
+            content_area:Show()
+            collapse_btn:GetFontString():SetText("_")
+        end
+    end)
 
     addon.main_frame = frame
     return frame
