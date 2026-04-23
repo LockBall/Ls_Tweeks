@@ -137,7 +137,7 @@ function addon.CreateSliderWithBox(name, parent, label_text, min_v, max_v, step,
         local default_value = nil
         if defaults_table then
             -- Accept both table.key and table["key"] for Lua flexibility
-            default_value = defaults_table[db_key] or defaults_table.db_key or defaults_table.interface_alpha
+            default_value = defaults_table[db_key]
         end
         if default_value == nil then
             default_value = min_v

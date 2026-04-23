@@ -182,7 +182,10 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         tb:SetScript("OnDragStop", function()
             parent:StopMovingOrSizing()
             local ucx, ucy = UIParent:GetCenter()
-            local pos = M.db.positions[parent.category]
+            local positions = M.db.positions
+            if not positions then return end
+            local pos = positions[parent.category]
+            if not pos then return end
             pos.point = "TOPLEFT"
             pos.x = math.floor(parent:GetLeft() - ucx + 0.5)
             pos.y = math.floor(parent:GetTop()  - ucy + 0.5)

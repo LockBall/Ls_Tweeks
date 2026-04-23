@@ -1085,8 +1085,6 @@ local function render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, ma
                     obj.bar:SetValue(1)
                 end
             end
-        else
-            -- Unknown/secret remaining in combat: keep last rendered text/value.
         end
         end
 
