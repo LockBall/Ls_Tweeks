@@ -179,14 +179,14 @@ end
 -- Runs at 0.1s from af_main.lua and keeps timer/bar text fresh between scans.
 function M.tick_visible_icons(now)
     now = now or GetTime()
-
-    local short_threshold = (M.db and M.db.short_threshold) or 60
+    local db = M.db
+    local short_threshold = (db and db.short_threshold) or 60
 
     for _, frame in pairs(M.frames) do
         if frame:IsVisible() then
             local is_static_frame = (frame.category == "static")
-            local show_timer_text = is_timer_text_enabled(M.db, frame.category)
-            local bar_mode = M.db and M.db["bar_mode_"..frame.category]
+            local show_timer_text = is_timer_text_enabled(db, frame.category)
+            local bar_mode = db and db["bar_mode_"..frame.category]
             for i = 1, #frame.icons do
                 local obj = frame.icons[i]
                 if obj:IsShown() and is_static_frame then
@@ -1413,19 +1413,19 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     )
 
     -- Frame height (only safe to resize out of combat)
-    local lc0 = self._layout_cache
-    local new_height = bar_mode and ((lc0 and lc0.row_height or 18) + spacing + 12)
-                                 or  ((lc0 and lc0.icon_size or 32) + spacing + 12)
+    local lc = self._layout_cache
+    local new_height = bar_mode and ((lc and lc.row_height or 18) + spacing + 12)
+                                 or  ((lc and lc.icon_size or 32) + spacing + 12)
     if display_count > 0 then
         if bar_mode then
-            local bar_row_h = lc0 and lc0.row_height or 18
+            local bar_row_h = lc and lc.row_height or 18
             new_height = display_count * (bar_row_h + spacing) + 12
-        elseif lc0 and (lc0.growth == "DOWN" or lc0.growth == "UP") then
-            local isz = lc0.icon_size or 32
+        elseif lc and (lc.growth == "DOWN" or lc.growth == "UP") then
+            local isz = lc.icon_size or 32
             new_height = display_count * (isz + spacing + 12) + 6
-        elseif lc0 and lc0.icons_per_row then
-            local isz = lc0.icon_size or 32
-            local rows = math_ceil(display_count / lc0.icons_per_row)
+        elseif lc and lc.icons_per_row then
+            local isz = lc.icon_size or 32
+            local rows = math_ceil(display_count / lc.icons_per_row)
             new_height = rows * (isz + spacing + 12) + 6
         else
             new_height = display_count * 44
