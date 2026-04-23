@@ -122,7 +122,6 @@ function M.BuildSettings(parent)
         panel_title:SetText("Enable Blizz Frame")
         panel_title:SetPoint("TOP", enable_panel, "TOP", 0, -5)
 
-
         -- Blizzard Buff Frame Checkbox (checked = enabled)
         local enable_blizz_buffs_container, enable_blizz_buffs_cb, _ = addon.CreateCheckbox(enable_panel, "Buff", not M.db.disable_blizz_buffs,
             function(is_checked)
@@ -143,7 +142,7 @@ function M.BuildSettings(parent)
                 M.toggle_blizz_debuffs(not is_checked)
             end
         )
-        enable_blizz_debuffs_container:SetPoint("CENTER", enable_panel, "CENTER", 40, -5)
+        enable_blizz_debuffs_container:SetPoint("CENTER", enable_panel, "CENTER", 35, -5)
         M.controls["enable_blizz_debuffs"] = enable_blizz_debuffs_cb
 
         -- Short Buff Threshold slider
@@ -197,8 +196,8 @@ function M.BuildSettings(parent)
             col_align = { "center", "center", "center", "center" },
             row_start = -20,
             row_gap = row_gap,
-            --             1   2   3   4   5   6
-            row_heights = {40, 60, 60, 110, 110, 110},
+            --             1    2   3   4   5   6
+            row_heights = {110, 60, 60, 110, 110, 110},
             reset_btn_width = 110,
             offsets = {
                 default = 0,
@@ -291,6 +290,52 @@ function M.BuildSettings(parent)
             line:SetWidth(grid[4] + grid.col_width)
         end
 
+        -- Width slider — defined early so it can be placed in Row 1.
+        local width_slider = addon.CreateSliderWithBox(
+            addon_name..cat.."WidthSlider",
+            p,
+            "Width",
+            180, 800, 1,
+            M.db, "width_"..cat, M.defaults
+        )
+        width_slider.slider:HookScript("OnValueChanged", function(_, value)
+            local f = M.frames[data.show_key]
+            if not f then return end
+            f:SetWidth(math.floor(value + 0.5))
+            update()
+        end)
+        M.controls["width_slider_"..cat] = width_slider
+
+        -- X/Y Position sliders — defined early so Row 1 and move_reset can reference them.
+        local function update_frame_position()
+            local pos = M.db.positions[cat]
+            local f = M.frames[data.show_key]
+            if f and pos then
+                f:ClearAllPoints()
+                f:SetPoint("TOPLEFT", UIParent, "CENTER", pos.x or 0, pos.y or 0)
+            end
+        end
+
+        local x_slider = addon.CreateSliderWithBox(
+            addon_name..cat.."XPosSlider",
+            p,
+            "X Position",
+            -1000, 1000, 1,
+            M.db.positions[cat], "x", M.defaults.positions[cat]
+        )
+        x_slider.slider:HookScript("OnValueChanged", update_frame_position)
+        M.controls["x_pos_slider_"..cat] = x_slider
+
+        local y_slider = addon.CreateSliderWithBox(
+            addon_name..cat.."YPosSlider",
+            p,
+            "Y Position",
+            -1000, 1000, 1,
+            M.db.positions[cat], "y", M.defaults.positions[cat]
+        )
+        y_slider.slider:HookScript("OnValueChanged", update_frame_position)
+        M.controls["y_pos_slider_"..cat] = y_slider
+
         -- Row 1
 
         local function uncheck_test_aura()
@@ -309,7 +354,7 @@ function M.BuildSettings(parent)
         end
 
         -- move mode
-        local _, move_cb = create_bound_checkbox("Move Mode", data.move_key, 1, 1, function(is_checked)
+        local move_mode_container, move_cb = create_bound_checkbox("Move Mode", data.move_key, 1, 1, function(is_checked)
             if is_checked then
                 -- Also check Enable Frame if not already checked
                 local enable_cb = M.controls and M.controls[data.show_key]
@@ -321,10 +366,14 @@ function M.BuildSettings(parent)
             update()
         end)
 
-        -- move Reset
+        place_at(x_slider, 1, 2)
+        place_at(y_slider, 1, 3)
+        place_at(width_slider, 1, 4)
+
+        -- move Reset: stacked below Move Mode in col 1
         local move_reset = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
         move_reset:SetSize(grid.reset_btn_width, 22)
-        place_at(move_reset, 1, 3)
+        move_reset:SetPoint("TOPLEFT", move_mode_container, "BOTTOMLEFT", 0, -6)
         move_reset:SetText("Move Reset")
         move_reset:SetScript("OnClick", function()
             local dPos = M.defaults.positions[cat]
@@ -418,48 +467,12 @@ function M.BuildSettings(parent)
 
 
 
-        -- Row 5: Scale, Spacing, X/Y Position sliders
+        -- Row 5: Scale, Spacing
         local scale_slider = create_bound_slider("Scale", "Scale", 0.5, 2.5, 0.01, data.scale_key, update)
         place_at(scale_slider, 5, 1)
 
         local spacing_slider = create_bound_slider("Spacing", "Spacing", 0, 20, 0.1, data.spacing_key)
         place_at(spacing_slider, 5, 2)
-
-        -- X/Y Position sliders (fine-tune frame position).
-        -- Always anchors CENTER→CENTER so slider values are screen-center-relative,
-        -- consistent with the defaults and how drag saves position.
-        local function update_frame_position()
-            local pos = M.db.positions[cat]
-            local f = M.frames[data.show_key]
-            if f and pos then
-                f:ClearAllPoints()
-                f:SetPoint("TOPLEFT", UIParent, "CENTER", pos.x or 0, pos.y or 0)
-            end
-        end
-
-        -- X Position slider
-        local x_slider = addon.CreateSliderWithBox(
-            addon_name..cat.."XPosSlider",
-            p,
-            "X Position",
-            -1000, 1000, 1,
-            M.db.positions[cat], "x", M.defaults.positions[cat]
-        )
-        x_slider.slider:HookScript("OnValueChanged", update_frame_position)
-        place_at(x_slider, 5, 3)
-        M.controls["x_pos_slider_"..cat] = x_slider
-
-        -- Y Position slider
-        local y_slider = addon.CreateSliderWithBox(
-            addon_name..cat.."YPosSlider",
-            p,
-            "Y Position",
-            -1000, 1000, 1,
-            M.db.positions[cat], "y", M.defaults.positions[cat]
-        )
-        y_slider.slider:HookScript("OnValueChanged", update_frame_position)
-        place_at(y_slider, 5, 4)
-        M.controls["y_pos_slider_"..cat] = y_slider
 
         -- Growth Direction dropdown now in row 3, col 4, vertically centered
         place_at(M.CreateDirectionDropdown(addon_name..cat.."Growth", p, "Growth Direction", "growth_"..cat, update), 3, 4, "dropdown", { y_offset = -math.floor((grid.row_heights[3] - 24) / 2) })
@@ -499,24 +512,7 @@ function M.BuildSettings(parent)
             end
         end
 
-        -- Row 6: Width slider + Max Icons slider
-        local width_slider = addon.CreateSliderWithBox(
-            addon_name..cat.."WidthSlider",
-            p,
-            "Width",
-            180, 800, 1,
-            M.db, "width_"..cat, M.defaults
-        )
-        width_slider.slider:HookScript("OnValueChanged", function(_, value)
-            local f = M.frames[data.show_key]
-            if not f then return end
-            -- LEFT anchor keeps the left edge fixed; just set width and redraw.
-            f:SetWidth(math.floor(value + 0.5))
-            update()
-        end)
-        place_at(width_slider, 6, 1)
-        M.controls["width_slider_"..cat] = width_slider
-
+        -- Row 6: Max Icons slider
         local max_icons_slider = create_bound_slider("PoolSlider", "Max Icons", 5, 40, 1, "max_icons_"..cat, function()
             print("|cFFFFFF00LsTweaks:|r Pool size for "..cat.." changed. Please /reload to apply.")
         end)

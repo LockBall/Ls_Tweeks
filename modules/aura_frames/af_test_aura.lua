@@ -26,10 +26,10 @@ local CFG = {
 
 -- Per-category preview label and sort order.
 local PREVIEW_META = {
-    show_static = { name = "Test Static Aura", sort_id = 1 },
-    show_short  = { name = "Test Short Aura",  sort_id = 2 },
-    show_long   = { name = "Test Long Aura",   sort_id = 3 },
-    show_debuff = { name = "Test Debuff",       sort_id = 4 },
+    show_static = { name = "Test Static Buff", sort_id = 1 },
+    show_short  = { name = "Test Short Buff",  sort_id = 2 },
+    show_long   = { name = "Test Long Buff",   sort_id = 3 },
+    show_debuff = { name = "Test DeBuff",       sort_id = 4 },
 }
 
 function M.get_test_preview_state(show_key, short_threshold, now)
