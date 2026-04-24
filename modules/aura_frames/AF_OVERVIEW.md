@@ -77,9 +77,11 @@ Defines:
   full `AuraUtil.ForEachAura` sweep on `isFullUpdate` or initial load.
 - `M.scan_helpful_shared(info, short_threshold, max_limit)` — one-pass shared scan for all three
   helpful categories (static/short/long). Returns a table with `.map` (auraInstanceID → entry)
-  and `.category_by_iid` (auraInstanceID → show_key). Caches its result for the current event
-  frame so that the three HELPFUL frames (static, short, long) each calling `update_auras` on the
-  same event only trigger one API sweep between them.
+  and `.category_by_iid` (auraInstanceID → show_key). Stores results in `M._helpful_shared` so
+  each call can reference the previous scan's map and category assignments for carry-forward logic
+  (stable re-categorization when aura fields become secret in combat). Each of the three HELPFUL
+  frames runs this independently on its own deferred timer; `M._helpful_shared` is the shared
+  cross-call state, not a within-event deduplication cache.
 
 **Aura classification:** static = permanent (duration == 0), short = remaining ≤ threshold,
 long = remaining > threshold. Each aura belongs to exactly one category at a time.
@@ -261,8 +263,9 @@ C_Timer.NewTicker(0.1)
   `InCombatLockdown()`. The ticker handles mid-combat timer/bar updates without touching geometry.
 - **Pool is fixed at load time.** Icon frames are created once in `create_aura_frame`. Adding icons
   requires a reload. `max_icons_<cat>` controls the pool size.
-- **Shared scan for HELPFUL.** Static, short, and long all call `scan_helpful_shared` on the same
-  event. The function caches its result per-event-frame so only one API sweep occurs regardless of
-  call order.
+- **Shared scan for HELPFUL.** Static, short, and long each call `scan_helpful_shared` on their
+  own deferred timers. `M._helpful_shared` carries the previous scan's map and category assignments
+  forward so combat-secret aura fields can be re-categorized stably across calls. Each call is a
+  full independent sweep; the shared state enables carry-forward, not scan deduplication.
 - **`_layout_cache` guards redundant re-layouts.** `update_auras` compares the five layout-relevant
   DB keys against the cache and only calls `setup_layout` when something changed.

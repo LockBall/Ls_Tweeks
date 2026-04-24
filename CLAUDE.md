@@ -90,8 +90,8 @@ Ls_Tweeks_DB = {
   aura_frames = {
     last_tab_index = number,       -- last selected category tab (1=General, 2=Static, ...)
     short_threshold = number,
-    disable_blizz_buffs = bool,
-    disable_blizz_debuffs = bool,
+    enable_blizz_buffs = bool,
+    enable_blizz_debuffs = bool,
     -- per-category keys: <setting>_<cat> e.g. show_static, color_debuff, scale_short
     positions = { static={x,y}, short={x,y}, long={x,y}, debuff={x,y} },
   }

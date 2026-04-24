@@ -264,5 +264,6 @@ function M.setup_layout(self, show_key, spacing_key, bar_mode)
         spacing         = spacing,
         growth          = growth,
         row_height      = bar_layout.row_height,
+        icon_size       = 32,
     }
 end

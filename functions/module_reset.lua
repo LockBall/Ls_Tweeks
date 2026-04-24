@@ -226,7 +226,7 @@ function addon.CreateGlobalReset(parent, db, defaults)
                         local dPos = db.positions and db.positions[suffix]
                         if dPos then
                             frame:ClearAllPoints()
-                            frame:SetPoint(dPos.point, UIParent, dPos.point, dPos.x, dPos.y)
+                            frame:SetPoint("TOPLEFT", UIParent, "CENTER", dPos.x, dPos.y)
                         end
 
                         if module.update_auras then

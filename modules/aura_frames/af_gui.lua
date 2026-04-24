@@ -84,9 +84,9 @@ function M.BuildSettings(parent)
     -- Category definitions shared between the tree and grid builders
     local frames_data = {
         { name = "Static", show_key = "show_static", move_key = "move_static", timer_key = "timer_static", bg_key = "bg_static", scale_key = "scale_static", spacing_key = "spacing_static" },
+        { name = "Debuffs",show_key = "show_debuff", move_key = "move_debuff", timer_key = "timer_debuff", bg_key = "bg_debuff", scale_key = "scale_debuff", spacing_key = "spacing_debuff", is_debuff = true },
         { name = "Short",  show_key = "show_short",  move_key = "move_short",  timer_key = "timer_short",  bg_key = "bg_short",  scale_key = "scale_short",  spacing_key = "spacing_short" },
         { name = "Long",   show_key = "show_long",   move_key = "move_long",   timer_key = "timer_long",   bg_key = "bg_long",   scale_key = "scale_long",   spacing_key = "spacing_long" },
-        { name = "Debuffs",show_key = "show_debuff", move_key = "move_debuff", timer_key = "timer_debuff", bg_key = "bg_debuff", scale_key = "scale_debuff", spacing_key = "spacing_debuff", is_debuff = true },
     }
 
     local tab_data = {
@@ -281,9 +281,9 @@ function M.BuildSettings(parent)
         panel_title:SetPoint("TOP", enable_panel, "TOP", 0, -5)
 
         -- Blizzard Buff Frame Checkbox (checked = enabled)
-        local enable_blizz_buffs_container, enable_blizz_buffs_cb, _ = addon.CreateCheckbox(enable_panel, "Buff", not M.db.disable_blizz_buffs,
+        local enable_blizz_buffs_container, enable_blizz_buffs_cb, _ = addon.CreateCheckbox(enable_panel, "Buff", M.db.enable_blizz_buffs,
             function(is_checked)
-                M.db.disable_blizz_buffs = not is_checked
+                M.db.enable_blizz_buffs = is_checked
                 M.toggle_blizz_buffs(not is_checked)
             end
         )
@@ -294,9 +294,9 @@ function M.BuildSettings(parent)
         local enable_blizz_debuffs_container, enable_blizz_debuffs_cb, _ = addon.CreateCheckbox(
             enable_panel,
             "Debuff",
-            not M.db.disable_blizz_debuffs,
+            M.db.enable_blizz_debuffs,
             function(is_checked)
-                M.db.disable_blizz_debuffs = not is_checked
+                M.db.enable_blizz_debuffs = is_checked
                 M.toggle_blizz_debuffs(not is_checked)
             end
         )
@@ -715,12 +715,12 @@ function M.sync_general_controls_from_db()
 
     local buffs = M.controls["enable_blizz_buffs"]
     if buffs and buffs.SetChecked then
-        buffs:SetChecked(not M.db.disable_blizz_buffs)
+        buffs:SetChecked(M.db.enable_blizz_buffs)
     end
 
     local debuffs = M.controls["enable_blizz_debuffs"]
     if debuffs and debuffs.SetChecked then
-        debuffs:SetChecked(not M.db.disable_blizz_debuffs)
+        debuffs:SetChecked(M.db.enable_blizz_debuffs)
     end
 
     for _, cat in ipairs(M.TIMER_CATEGORIES) do

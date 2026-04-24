@@ -35,15 +35,15 @@ M.defaults = {
     last_frames_node = "static",
 
     -- Global Toggles
-    disable_blizz_buffs = false,
-    disable_blizz_debuffs = false,
+    enable_blizz_buffs = true,
+    enable_blizz_debuffs = true,
     short_threshold = 60,
     timer_number_font = "source_code_pro",
     timer_number_font_size = 10,
     timer_number_font_bold = false,
 
     -- STATIC
-    show_static     = false,
+    show_static     = true,
     move_static     = true,
     timer_static    = false,
     bg_static       = false,
@@ -57,10 +57,10 @@ M.defaults = {
     growth_static = "RIGHT",
     bg_color_static = default_bg_color(),
     sort_static  = "name",
-    test_aura_static = false,
+    test_aura_static = true,
 
     -- SHORT
-    show_short      = false,
+    show_short      = true,
     move_short      = true,
     timer_short     = true,
     bg_short        = false,
@@ -74,13 +74,13 @@ M.defaults = {
     growth_short = "DOWN",
     bg_color_short = default_bg_color(),
     sort_short   = "timeleft",
-    test_aura_short = false,
+    test_aura_short = true,
     timer_number_font_short = "source_code_pro",
     timer_number_font_size_short = 10,
     timer_number_font_bold_short = false,
 
     -- LONG
-    show_long       = false,
+    show_long       = true,
     move_long       = true,
     timer_long      = true,
     bg_long         = false,
@@ -94,13 +94,13 @@ M.defaults = {
     growth_long = "RIGHT",
     bg_color_long = default_bg_color(),
     sort_long    = "timeleft",
-    test_aura_long = false,
+    test_aura_long = true,
     timer_number_font_long = "source_code_pro",
     timer_number_font_size_long = 10,
     timer_number_font_bold_long = false,
 
     -- DEBUFFS
-    show_debuff     = false,
+    show_debuff     = true,
     move_debuff     = true,
     timer_debuff    = true,
     bg_debuff       = false,
@@ -114,7 +114,7 @@ M.defaults = {
     growth_debuff = "UP",
     bg_color_debuff = default_bg_color(),
     sort_debuff  = "timeleft",
-    test_aura_debuff = false,
+    test_aura_debuff = true,
     timer_number_font_debuff = "source_code_pro",
     timer_number_font_size_debuff = 10,
     timer_number_font_bold_debuff = false,

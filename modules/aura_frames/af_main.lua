@@ -468,8 +468,8 @@ loader:SetScript("OnEvent", function(self, event, name)
         end)
 
         -- Sync the Blizzard frame visibility based on user preferences
-        M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
-        M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+        M.toggle_blizz_buffs(not M.db.enable_blizz_buffs)
+        M.toggle_blizz_debuffs(not M.db.enable_blizz_debuffs)
 
         -- Integrate the settings tab into the main addon configuration menu
         if addon.register_category and M.BuildSettings then
@@ -482,8 +482,8 @@ end)
 
 -- RESET AND REFRESH: Restores UI states following a settings reset or global change
 function M.on_reset_complete()
-    M.toggle_blizz_buffs(M.db.disable_blizz_buffs)
-    M.toggle_blizz_debuffs(M.db.disable_blizz_debuffs)
+    M.toggle_blizz_buffs(not M.db.enable_blizz_buffs)
+    M.toggle_blizz_debuffs(not M.db.enable_blizz_debuffs)
     M.apply_number_font_to_all()
 
     if M.sync_general_controls_from_db then

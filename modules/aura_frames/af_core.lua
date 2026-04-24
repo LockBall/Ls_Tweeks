@@ -171,13 +171,13 @@ function M.update_auras(self, show_key, move_key, timer_key, bg_key, scale_key, 
     if is_moving and not db[show_key] and not preview_enabled then
         local timer_font_size = (M.get_timer_number_font_size and M.get_timer_number_font_size(category)) or 10
         local bar_layout = M.get_bar_layout_params(timer_font_size)
-        local min_height
+        local min_height  -- bar_mode and spacing already in outer scope
         if bar_mode then
             min_height = (bar_layout.row_height or 18) + spacing + 12
         else
             local timer_h = show_timer_text and 12 or 0
             local bot_pad = show_timer_text and 14 or 12
-            min_height = (bar_layout.icon_size or 32) + timer_h + bot_pad
+            min_height = 32 + timer_h + bot_pad
         end
         M.set_height_for_growth(self, min_height, growth)
         self:Show()

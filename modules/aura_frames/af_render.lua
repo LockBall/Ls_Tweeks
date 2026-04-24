@@ -302,7 +302,6 @@ function M.render_aura_map(self, aura_map, bar_mode, color, bar_bg_color, max_li
         if rem ~= nil then
             if issecretvalue(rem) then
                 local display_remaining = nil
-                local short_threshold = (M.db and M.db.short_threshold) or 60
                 if entry.expiration and entry.expiration > 0 then
                     display_remaining = math_max(0, entry.expiration - now)
                 elseif entry.remaining and entry.remaining > 0 then
