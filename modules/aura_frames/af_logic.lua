@@ -1103,6 +1103,7 @@ end
 
 function M.setup_layout(self, show_key, spacing_key, bar_mode)
     if not self or not self.icons then return end
+    if InCombatLockdown() then return end
 
     local db = M.db
     local category = show_key:sub(6)

@@ -367,6 +367,7 @@ function M.BuildSettings(parent)
         }
 
         local function place_at(control, row, column, slot, opts)
+            if not control then return end
             opts = opts or {}
             local align = opts.align or grid.col_align[column] or "left"
             local x = grid[column]
