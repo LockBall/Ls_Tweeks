@@ -41,7 +41,10 @@ modules\combat_text.lua
 # --- Aura Frames Module ---
 modules\aura_frames\af_defaults.lua
 modules\aura_frames\af_test_aura.lua
-modules\aura_frames\af_logic.lua
+modules\aura_frames\af_scan.lua
+modules\aura_frames\af_render.lua
+modules\aura_frames\af_layout.lua
+modules\aura_frames\af_core.lua
 modules\aura_frames\af_gui.lua
 modules\aura_frames\af_debug_outlines.lua
 modules\aura_frames\af_main.lua
