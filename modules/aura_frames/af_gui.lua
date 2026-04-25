@@ -427,16 +427,18 @@ function M.BuildSettings(parent)
             return slider
         end
 
-        -- Draw a 1px horizontal separator at the bottom edge of the given row.
+        -- Draw a 2px horizontal separator in the gap below the given row.
         local function add_row_separator(row)
-            local line = p:CreateTexture(nil, "BACKGROUND") -- "BACKGROUND" keeps it behind all widgets
-            line:SetColorTexture(1, 1, 1, 0.08)             -- white at 8% alpha: subtle, not distracting
-            line:SetHeight(1)                                -- 1px tall = a hairline rule
-            -- place_at with valign="bottom" lands at the row's bottom edge, col 1 left-aligned (x=0).
-            -- y_offset of half row_gap centers the line in the fixed space between rows.
-            -- SetWidth spans the full grid: col 4 start + col_width = right edge of the last column.
-            place_at(line, row, 1, nil, {valign = "bottom", align = "left", y_offset = math.floor(grid.row_gap / 2)})
-            line:SetWidth(grid[4] + grid.col_width)
+            local line = p:CreateTexture(nil, "BACKGROUND")
+            line:SetColorTexture(1, 1, 1, 0.08)
+            line:SetHeight(2)
+            -- Accumulate row heights to find the bottom edge of this row, then nudge up by half
+            -- the row gap so the line sits centered in the space between rows.
+            local y = grid.row_start
+            for i = 1, row do y = y - (grid.row_heights[i] or grid.row_heights[#grid.row_heights]) end
+            line:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y + math.floor(grid.row_gap / 2))
+            -- Width: right edge of col 4 minus 12px to avoid touching the outer frame border.
+            line:SetWidth(grid[4] + grid.col_width - 12)
         end
 
         -- Width slider — defined early so it can be placed in Row 1.
