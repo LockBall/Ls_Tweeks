@@ -33,12 +33,14 @@ end
 -- The Data: strictly default values
 M.defaults = {
     last_frames_node = "static",
+    last_tab_index = 1,
 
     -- Global Toggles
     enable_blizz_buffs = true,
     enable_blizz_debuffs = true,
     snap_to_grid   = false,
     show_grid      = false,
+    show_bar_section_outlines = false,
     short_threshold = 60,
     timer_number_font = "source_code_pro",
     timer_number_font_size = 10,

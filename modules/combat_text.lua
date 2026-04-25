@@ -95,7 +95,6 @@ end
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
-loader:RegisterEvent("PLAYER_LOGOUT")
 
 -- Local function to handle initialization cleanup
 local function init_complete(self)
@@ -170,10 +169,5 @@ loader:SetScript("OnEvent", function(self, event, name)
         M.update_combat_text()
         init_complete(self)
     
-    elseif event == "PLAYER_LOGOUT" then
-        -- Reset cached frame reference on logout (handles realm changes)
-        hitIndicatorFrame = nil
-        hookApplied = false
-        hidePortraitText = false
     end
 end)

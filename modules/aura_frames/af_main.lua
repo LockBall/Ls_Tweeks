@@ -24,13 +24,8 @@ M.NUMBER_FONT_OPTIONS = {
     },
 }
 
--- bold variant paths; nil means no bold available for that font
 M.NUMBER_FONT_BOLD_PATHS = {
-    inconsolata    = "Interface\\AddOns\\LsTweeks\\media\\fonts\\Inconsolata-Bold.ttf",
-    jetbrains_mono = "Interface\\AddOns\\LsTweeks\\media\\fonts\\JetBrainsMono-Bold.ttf",
-    source_code_pro= "Interface\\AddOns\\LsTweeks\\media\\fonts\\SourceCodePro-Bold.ttf",
-    roboto_mono    = "Interface\\AddOns\\LsTweeks\\media\\fonts\\RobotoMono-Bold.ttf",
-    ["0xproto"]   = "Interface\\AddOns\\LsTweeks\\media\\fonts\\0xProto-Bold.ttf",
+    source_code_pro = "Interface\\AddOns\\LsTweeks\\media\\fonts\\SourceCodePro-Bold.ttf",
 }
 
 local function get_number_font_def(key, category)

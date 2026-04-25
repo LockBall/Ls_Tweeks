@@ -202,62 +202,10 @@ function addon.CreateGlobalReset(parent, db, defaults)
         table.wipe(db)
         addon.deep_copy_into(defaults, db)
 
-        -- Universal Frame & UI Sync
-        for moduleName, module in pairs(addon) do
-            if type(module) == "table" and module.frames then
-                
-                -- Sync UI Controls (Checkboxes and Sliders)
-                if module.controls then
-                    for key, control in pairs(module.controls) do
-                        if control.SetChecked then
-                            if db[key] ~= nil then control:SetChecked(db[key]) end
-                        elseif control.SetValue then
-                            if db[key] ~= nil then control:SetValue(db[key]) end
-                        end
-                    end
-                end
-                
-                -- Update Physical Frames
-                for show_key, frame in pairs(module.frames) do
-                    local suffix = show_key:gsub("show_", "")
-                    local move_key = "move_" .. suffix
-                    
-                    if frame then
-                        local dPos = db.positions and db.positions[suffix]
-                        if dPos then
-                            frame:ClearAllPoints()
-                            frame:SetPoint("TOPLEFT", UIParent, "CENTER", dPos.x, dPos.y)
-                        end
-
-                        if module.update_auras then
-                            module.update_auras(
-                                frame, 
-                                show_key, 
-                                move_key, 
-                                "timer_" .. suffix, 
-                                "bg_" .. suffix, 
-                                "scale_" .. suffix, 
-                                "spacing_" .. suffix, 
-                                suffix == "debuff" and "HARMFUL" or "HELPFUL"
-                            )
-                        end
-                    end
-                end
-                
-                -- Invalidate cached UI tabs for rebuild
-                if module.BuildSettings or module.build_settings then
-                    if addon.main_frame and addon.main_frame.tabs then
-                        for tabName, tabFrame in pairs(addon.main_frame.tabs) do
-                            if tabName ~= "About" then
-                                addon.main_frame.tabs[tabName] = nil
-                            end
-                        end
-                    end
-                end
-                
-                if module.on_reset_complete then
-                    module.on_reset_complete()
-                end
+        -- Notify modules with a reset hook
+        for _, module in pairs(addon) do
+            if type(module) == "table" and module.on_reset_complete then
+                module.on_reset_complete()
             end
         end
 

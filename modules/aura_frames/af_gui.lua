@@ -314,9 +314,9 @@ function M.BuildSettings(parent)
 
 
         -- Show Bar Section Outlines Checkbox
-        local outlines_container, outlines_btn, _ = addon.CreateCheckbox(p, "Show Bar Section Outlines", Ls_Tweeks_DB.show_bar_section_outlines == true,
+        local outlines_container, outlines_btn, _ = addon.CreateCheckbox(p, "Show Bar Section Outlines", M.db.show_bar_section_outlines == true,
             function(is_checked)
-                Ls_Tweeks_DB.show_bar_section_outlines = is_checked
+                M.db.show_bar_section_outlines = is_checked
                 if addon.aura_frames and addon.aura_frames.refresh_section_outlines then
                     addon.aura_frames.refresh_section_outlines()
                 end
@@ -772,5 +772,9 @@ function M.sync_general_controls_from_db()
         end
     end
 
+    local outlines_cb = M.controls["show_bar_section_outlines_checkbox"]
+    if outlines_cb and outlines_cb.SetChecked then
+        outlines_cb:SetChecked(M.db.show_bar_section_outlines == true)
+    end
 end
 

@@ -2,7 +2,7 @@ local addon_name, addon = ...
 local M = addon.aura_frames
 
 local function is_outline_enabled()
-    return Ls_Tweeks_DB and Ls_Tweeks_DB.show_bar_section_outlines
+    return M.db and M.db.show_bar_section_outlines
 end
 
 local function add_debug_outline(frame, r, g, b, a)

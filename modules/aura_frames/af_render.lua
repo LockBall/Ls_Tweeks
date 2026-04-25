@@ -28,7 +28,6 @@ local function format_time(s)
     if s >= 1 then return format("%.1f s", s) end
     return format("%.1f s", s)
 end
-M.format_time = format_time
 
 -- ============================================================================
 -- SORT HELPERS (also used in af_scan.lua — kept local, tiny pure functions)
