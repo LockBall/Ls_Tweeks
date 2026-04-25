@@ -41,6 +41,7 @@ M.defaults = {
     snap_to_grid   = false,
     show_grid      = false,
     show_bar_section_outlines = false,
+    show_spell_id = false,
     short_threshold = 60,
     timer_number_font = "source_code_pro",
     timer_number_font_size = 10,

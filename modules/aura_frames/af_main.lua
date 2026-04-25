@@ -298,7 +298,11 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
                     GameTooltip:AddLine("(Permanent)", 0.7, 0.7, 1)
                 end
             end
-            
+
+            if M.db and M.db.show_spell_id and s.aura_spell_id then
+                GameTooltip:AddLine("Spell ID: " .. tostring(s.aura_spell_id), 0.6, 0.6, 0.6)
+            end
+
             GameTooltip:Show()
         end)
         obj:SetScript("OnLeave", function() 

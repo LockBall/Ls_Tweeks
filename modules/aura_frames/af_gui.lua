@@ -325,9 +325,18 @@ function M.BuildSettings(parent)
         outlines_container:SetPoint("TOPLEFT", threshold, "BOTTOMLEFT", 0, -18)
         M.controls.show_bar_section_outlines_checkbox = outlines_btn
 
+        -- Show Spell ID in tooltip checkbox
+        local spell_id_container, spell_id_btn, _ = addon.CreateCheckbox(p, "Show Spell ID", M.db.show_spell_id == true,
+            function(is_checked)
+                M.db.show_spell_id = is_checked
+            end
+        )
+        spell_id_container:SetPoint("TOPLEFT", outlines_container, "BOTTOMLEFT", 0, -6)
+        M.controls.show_spell_id_checkbox = spell_id_btn
+
         -- reset panel
         local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
-        resetPanel:SetPoint("TOPLEFT", outlines_container, "BOTTOMLEFT", 0, -16)
+        resetPanel:SetPoint("TOPLEFT", spell_id_container, "BOTTOMLEFT", 0, -16)
     end
 
     build_category_tab = function(p, data)
@@ -746,6 +755,11 @@ function M.sync_general_controls_from_db()
     local snap_cb = M.controls["snap_to_grid_checkbox"]
     if snap_cb and snap_cb.SetChecked then
         snap_cb:SetChecked(M.db.snap_to_grid == true)
+    end
+
+    local spell_id_cb = M.controls["show_spell_id_checkbox"]
+    if spell_id_cb and spell_id_cb.SetChecked then
+        spell_id_cb:SetChecked(M.db.show_spell_id == true)
     end
 
     local grid_cb = M.controls["show_grid_checkbox"]
