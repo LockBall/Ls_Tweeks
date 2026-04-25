@@ -90,8 +90,9 @@ function M.BuildSettings(parent)
     }
 
     local tab_data = {
-        { name = "General", is_general = true },
-        { name = "Frames",  is_frames  = true },
+        { name = "General", is_general  = true },
+        { name = "Frames",  is_frames   = true },
+        { name = "Aura ID", is_aura_id  = true },
     }
 
     local build_category_tab  -- forward declaration so build_frames_tab can reference it
@@ -260,6 +261,20 @@ function M.BuildSettings(parent)
         end
     end
 
+    local function build_aura_id_tab(p)
+        local lbl = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lbl:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -16)
+        lbl:SetText("Show spell/aura/buff IDs in icon tooltips.")
+
+        local spell_id_container, spell_id_btn, _ = addon.CreateCheckbox(p, "Show Aura / Spell ID in Tooltip", M.db.show_spell_id == true,
+            function(is_checked)
+                M.db.show_spell_id = is_checked
+            end
+        )
+        spell_id_container:SetPoint("TOPLEFT", lbl, "BOTTOMLEFT", 0, -10)
+        M.controls.show_spell_id_checkbox = spell_id_btn
+    end
+
     local function build_general_tab(p)
         -- Manual layout for General tab
 
@@ -325,18 +340,9 @@ function M.BuildSettings(parent)
         outlines_container:SetPoint("TOPLEFT", threshold, "BOTTOMLEFT", 0, -18)
         M.controls.show_bar_section_outlines_checkbox = outlines_btn
 
-        -- Show Spell ID in tooltip checkbox
-        local spell_id_container, spell_id_btn, _ = addon.CreateCheckbox(p, "Show Spell ID", M.db.show_spell_id == true,
-            function(is_checked)
-                M.db.show_spell_id = is_checked
-            end
-        )
-        spell_id_container:SetPoint("TOPLEFT", outlines_container, "BOTTOMLEFT", 0, -6)
-        M.controls.show_spell_id_checkbox = spell_id_btn
-
         -- reset panel
         local resetPanel = addon.CreateGlobalReset(p, M.db, M.defaults)
-        resetPanel:SetPoint("TOPLEFT", spell_id_container, "BOTTOMLEFT", 0, -16)
+        resetPanel:SetPoint("TOPLEFT", outlines_container, "BOTTOMLEFT", 0, -16)
     end
 
     build_category_tab = function(p, data)
@@ -719,6 +725,8 @@ function M.BuildSettings(parent)
             build_general_tab(p)
         elseif data.is_frames then
             build_frames_tab(p)
+        elseif data.is_aura_id then
+            build_aura_id_tab(p)
         end
 
         tabs[i], panels[i] = tab, p

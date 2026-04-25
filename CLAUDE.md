@@ -1,33 +1,7 @@
 # LsTweeks — Claude Code Context
 
-## Changelog
-
-### 2026-04-21 (3)
-- af_gui grid: replaced unequal columns + dead `_end` keys with 3 equal 246px columns; col 1 left-aligned, cols 2-3 center-aligned by default via `col_align`
-- `place_at` now reads `grid.col_align[column]` as default, `opts.align` still overrides
-- Renamed "Frame BackGround" checkbox label → "Frame BG"
-
-### 2026-04-21 (2)
-- Removed pixel snapping: deleted `pixel_snap` helper and all call sites in af_logic.lua (`snap()` local, `eff_scale` fetches, and three `pixel_snap` calls in `set_height_for_growth`)
-- Removed pixel snap rule from Architecture Rules in CLAUDE.md
-
-### 2026-04-21
-- Dead code pass: removed `CreateStepButtonStack` alias, `global_module_defaults` orphan global, stale `M.controls` refs in st_main, redundant static-category nil assignments in af_gui
-- Fixed `sync_general_controls_from_db`: now iterates `short/long/debuff` only (static has no font controls), corrected key from `font_size_dropdown` → `font_size_slider`, uses `slider:SetValue` for proper display sync
-- Updated slash command references in st_main.lua from `/lt` → `/lst` to match `SLASH_LSTWEEKS` in init.lua
-
-### 2026-04-20
-- Refactored `modules/settings.lua` → `modules/settings/st_defaults.lua` + `modules/settings/st_main.lua`
-- Added interface transparency slider to Settings tab; reset returns to default (0.5) correctly
-- Simplify pass: fixed `gap` forward-reference in checkbox.lua; added OnHide debounce cancel in slider_with_box; fixed `refresh_section_outlines` structural nesting in af_main; removed dead `place_centered_at` helper and `threshold_debounce` var from af_gui
-- af_main: texture removal now uses `._is_outline` tag + `Hide()`/`SetTexture(nil)` instead of `SetParent(nil)`
-- CLAUDE.md: added Layout Rules, Saved Variables map, af_gui layout system, Debug Outlines sections
-
----
-
 ## Claude Permissions
 - Bash `grep` commands are pre-approved for this project — no need to prompt for permission.
-- **Changelog:** do not update unless explicitly requested.
 
 ## What This Is
 **L's Tweeks** — a modular WoW UI addon (patch 12.0 / Interface 120000) by LockBall.  
@@ -149,7 +123,7 @@ Do NOT use `SetParent(nil)` to remove textures — use `Hide()` + `SetTexture(ni
 
 ## Grid Snap (af_grid.lua)
 20px grid, screen-center origin — matches LsTweeks coordinate system exactly.  
-`M.snap_to_grid(v, is_y)` — snaps a coordinate. `M.set_grid_visible(show)` — toggles overlay.  
+`M.snap_to_grid(v, is_y)` — snaps a coordinate. `M.set_grid_visible(show)` — toggles overlay. 
 DB keys: `aura_frames.snap_to_grid`, `aura_frames.show_grid`.
 
 ## Riveted Panel Style
