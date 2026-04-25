@@ -1,3 +1,10 @@
+-- Aura scanning and classification into static / short / long / debuff category maps.
+-- In combat, WoW hides aura duration and expiration as "secret values" to prevent ability tracking.
+-- This file works around that by calling C_UnitAuras.GetAuraDuration() which returns a live Duration
+-- object readable even in combat, and by learning spell IDs out of combat (known_static_spell_ids,
+-- known_long_spell_ids) so auras can be re-categorized stably when their fields go secret mid-fight.
+-- DoesAuraHaveExpirationTime() provides a final fallback boolean when all time fields are unreadable.
+
 local addon_name, addon = ...
 
 local floor      = math.floor

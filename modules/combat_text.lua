@@ -1,4 +1,6 @@
--- Ls_Tweeks - combat_text.lua
+-- Hides the floating combat text that appears on / in the player portrait during combat.
+-- Registers a settings category with a single toggle
+-- applies immediately on change via the appropriate CVar or frame visibility call.
 
 local addon_name, addon = ...
 
@@ -125,7 +127,8 @@ loader:SetScript("OnEvent", function(self, event, name)
             addon.register_category(STRINGS.category_name, function(parent)
                 local cfg = UI_CONFIG
                 local theme = addon.UI_THEME
-                
+                local panel_style = addon.RIVETED_PANEL_STYLE
+
                 local cb_container, cb = addon.CreateCheckbox(
                     parent,
                     STRINGS.checkbox_label,
@@ -139,17 +142,17 @@ loader:SetScript("OnEvent", function(self, event, name)
                 cb_container:SetPoint("TOPLEFT", parent, "TOPLEFT", cfg.checkbox_offset_x, cfg.checkbox_offset_y)
 
                 -- Riveted panel & note
-                local panelWidth = math.min(theme.panel_max_width, 741 - theme.panel_margin)
+                local panelWidth = math.min(panel_style.panel_max_width, 741 - panel_style.panel_margin)
                 local notePanel, noteText = addon.CreateRivetedPanel(
-                    parent,                -- parent frame
-                    panelWidth,            -- width
-                    theme.panel_min_height,-- initial height
-                    parent,                -- anchor frame
-                    "TOP",                 -- anchor point
-                    theme.offset_x,        -- x offset
-                    theme.offset_y         -- y offset
+                    parent,                       -- parent frame
+                    panelWidth,                   -- width
+                    panel_style.panel_min_height, -- initial height
+                    parent,                       -- anchor frame
+                    "TOP",                        -- anchor point
+                    panel_style.offset_x,         -- x offset
+                    panel_style.offset_y          -- y offset
                 )
-                
+
                 -- Safety check
                 if not notePanel or not noteText then return end
 
@@ -159,15 +162,15 @@ loader:SetScript("OnEvent", function(self, event, name)
                 noteText:SetJustifyV("TOP")
                 noteText:SetWordWrap(true)
                 noteText:SetText(STRINGS.help_text)
-                
+
                 -- Anchor with padding
-                local pad = theme.padding
+                local pad = panel_style.padding
                 noteText:SetPoint("TOPLEFT", notePanel, "TOPLEFT", pad, -pad)
                 noteText:SetPoint("RIGHT", notePanel, "RIGHT", -pad, 0)
 
                 -- Auto-size panel to fit content
                 local textHeight = noteText:GetHeight()
-                notePanel:SetHeight(math.max(theme.panel_min_height, textHeight + (pad * 2)))
+                notePanel:SetHeight(math.max(panel_style.panel_min_height, textHeight + (pad * 2)))
 
             end)
         end

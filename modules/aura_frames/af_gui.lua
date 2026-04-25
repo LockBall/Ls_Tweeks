@@ -1,3 +1,8 @@
+-- Settings UI for the Aura Frames module, registered as a sidebar category in the main window.
+-- BuildSettings() creates two tabs:
+-- 1) General (global toggles and thresholds)
+-- 2) Frames (a tree sidebar listing each category with a per-category settings grid to the right).
+
 local addon_name, addon = ...
 
 -- Ensure the unified module table is used

@@ -1,3 +1,5 @@
+-- Runtime loop for the aura frames module: drives the per-tick timer countdown and the per-frame aura update pipeline.
+-- tick_visible_icons() runs every 0.1s to update timer text and bar values without re-scanning. update_auras() orchestrates the full scan → layout → render → resize sequence on each deferred UNIT_AURA event.
 local addon_name, addon = ...
 
 local math_max       = math.max

@@ -1,6 +1,7 @@
+-- Slider widget paired with a numeric text input and a reset button: addon.CreateSliderWithBox(name, parent, label, min, max, step, db, key, defaults, cb).
+-- Changes from either the slider or the box are synced to each other and written to the DB; has a built-in 0.1s debounce so the callback is not called on every drag tick.
 local addon_name, addon = ...
 
--- Shared slider with paired numeric input and reset button.
 function addon.CreateSliderWithBox(name, parent, label_text, min_v, max_v, step, db_table, db_key, defaults_table, callback)
     local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     container:SetSize(130, 95)

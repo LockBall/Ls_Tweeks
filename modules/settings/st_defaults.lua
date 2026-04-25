@@ -1,3 +1,5 @@
+-- Default DB values for the Settings module: interface_alpha, minimap visibility, and open_on_reload.
+-- Consumed by addon.apply_defaults() on first load and after a global reset.
 local addon_name, addon = ...
 
 local M = {}

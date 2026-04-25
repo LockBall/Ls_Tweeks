@@ -1,3 +1,5 @@
+-- Vertically stacked +/- button pair used to step a value up or down one unit at a time.
+-- addon.CreateStepButtonGroup(parent, height, on_increment, on_decrement) returns the container frame.
 local addon_name, addon = ...
 
 function addon.CreateStepButtonGroup(parent, button_height, on_increment, on_decrement)

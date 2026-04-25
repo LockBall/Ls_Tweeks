@@ -1,28 +1,16 @@
+-- Addon entry point: initializes the shared addon table, defines UI_THEME constants,
+-- sets up SavedVariables (Ls_Tweeks_DB), and registers the /lst slash command.
+-- Loads first; every other file reads addon.UI_THEME and writes into Ls_Tweeks_DB through the patterns established here.
+
 local addon_name, addon = ...
 addon.name = addon_name
 
--- GLOBAL UI THEME FOR RIVET PANELS (shared across all modules)
--- Centralized configuration for consistent styling of CreateRivetedPanel instances
+-- Shared UI font tokens used across all modules.
+-- Rivet panel layout constants (padding, sizing, positioning) live in addon.RIVETED_PANEL_STYLE in panel_riveted.lua.
 addon.UI_THEME = {
-    -- Rivet Panel Content Spacing
-    padding = 33,              -- padding inside rivet panels
-    panel_margin = 60,         -- margin around panels from parent edges
-    
-    -- Rivet Panel Sizing
-    panel_min_height = 60,     -- minimum height for rivet panels
-    panel_max_width = 420,     -- maximum width for rivet panels
-    
-    -- Rivet Panel Positioning
-    offset_x = 0,              -- default horizontal offset for panel positioning
-    offset_y = -50,            -- default vertical offset for panel positioning
-    
-    -- Typography (Rivet Panel Text)
-    font_panel = "GameFontHighlightSmall",  -- font for text inside rivet panels
-    
-    -- General UI Fonts (used by modules)
-    font_title = "GameFontHighlight",
+    font_title    = "GameFontHighlight",
     font_subtitle = "GameFontHighlightSmall",
-    font_body = "GameFontNormal",
+    font_body     = "GameFontNormal",
 }
 
 -- DATABASE INITIALIZATION

@@ -1,3 +1,6 @@
+-- 20 px snap-to-grid system for aura frame positioning, aligned to the screen center (matching the LsTweeks coordinate origin).
+-- snap_to_grid(v, is_y) rounds a coordinate to the nearest grid cell; set_grid_visible(show) toggles the visual overlay of grid lines on screen.
+
 local _, addon = ...
 
 addon.aura_frames = addon.aura_frames or {}

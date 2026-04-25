@@ -1,3 +1,5 @@
+-- Fake aura preview system used for layout and UI testing outside of combat.
+-- Injects synthetic aura data into the scan results so frames render with placeholder icons without needing real buffs active.
 local addon_name, addon = ...
 
 addon.aura_frames = addon.aura_frames or {}

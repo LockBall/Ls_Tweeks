@@ -1,3 +1,9 @@
+-- Positions and sizes aura icons within each category frame (static/short/long/debuff).
+-- i.e. icon placement within a specific frame on screen, not the frames themselves, which are handled by af_main.lua.
+-- setup_layout() arranges icons in rows or columns based on growth direction, bar mode, spacing, and frame width from DB.
+-- get_bar_layout_params() returns pixel measurements for bar-mode rows (icon, stack count, timer, name slots).
+-- set_height_for_growth() resizes a frame while keeping the correct edge anchored so icons grow in the right direction.
+
 local addon_name, addon = ...
 
 local floor          = math.floor

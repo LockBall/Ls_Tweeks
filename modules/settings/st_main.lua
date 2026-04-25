@@ -1,5 +1,5 @@
--- Ls_Tweeks - settings/st_main.lua
-
+-- General addon settings panel: minimap button toggle, open-on-reload toggle, and interface transparency slider.
+-- Registered as the "Settings" sidebar category; on_reset_complete() resyncs all controls from DB after a global reset.
 local addon_name, addon = ...
 
 -- Initialize module table

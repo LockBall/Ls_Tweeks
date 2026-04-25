@@ -32,7 +32,7 @@ modules/
     af_defaults.lua      — all default config values, single source of truth; M.CATEGORIES, M.TIMER_CATEGORIES
     af_scan.lua          — aura scanning: scan_helpful_shared(), full_scan()
     af_render.lua        — render_aura_map(), set_timer_text(), merge_aura_info()
-    af_layout.lua        — setup_layout(), set_height_for_growth(), get_bar_layout_params(), is_timer_text_enabled()
+    af_icon_layout.lua   — setup_layout(), set_height_for_growth(), get_bar_layout_params(), is_timer_text_enabled()
     af_core.lua          — tick_visible_icons(), update_auras(), toggle_blizz_buffs/debuffs()
     af_gui.lua           — settings tab builder; M.BuildSettings(), sync_general_controls_from_db()
     af_main.lua          — init, frame creation, icon pool, drag/resize, on_reset_complete
@@ -42,6 +42,9 @@ modules/
 libs/            — LibStub, LibDataBroker-1.1, LibDBIcon-1.0, CallbackHandler-1.0
 media/fonts/     — monospace TTFs: SourceCodePro (selectable), Inconsolata, JetBrainsMono, RobotoMono, 0xProto (on disk, not yet selectable)
 ```
+
+## File Header Standard
+Every lua file must open with a brief comment (a few sentences) explaining what the file does, placed before `local addon_name, addon = ...`. The comment should describe the file's role/responsibility in plain terms and mention its key public functions or how it fits into the larger system. Do not use a bare filename label as a substitute.
 
 ## Architecture Rules
 - **Module pattern:** `local addon_name, addon = ...` at top of every file; modules share the `addon` namespace table.

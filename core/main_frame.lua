@@ -1,3 +1,6 @@
+-- Builds and manages the main LsTweeks settings window: a sidebar listing registered modules and a content area that swaps in each module's settings panel.
+-- Modules self-register via addon.register_category(name, builder_fn), which adds them to the sidebar and on-demand builds their panel on first selection.
+
 local addon_name, addon = ...
 
 -- ============================================================================

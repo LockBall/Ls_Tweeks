@@ -1,11 +1,24 @@
+-- Shared decorative panel style used throughout LsTweeks: marble background, ornate dialog-frame borders, and corner rivet textures.
+-- ApplyRivetedPanelStyle() and AddRivetCorners() dress an existing frame; CreateRivetedPanel() builds a fully styled panel from scratch.
 local addon_name, addon = ...
 
 addon.RIVETED_PANEL_STYLE = addon.RIVETED_PANEL_STYLE or {
+    -- Backdrop appearance
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
     tileSize = 256,
     backdropInsets = { left = 5, right = 5, top = 5, bottom = 5 },
     bgColor = { 0.65, 0.6, 0.75, 1.0 },
     borderColor = { 0.6, 0.6, 0.6, 0.6 },
+
+    -- Layout helpers for modules that create riveted panels
+    padding        = 33,    -- inner content padding
+    panel_margin   = 60,    -- margin from parent edges when sizing panel width
+    panel_min_height = 60,  -- minimum panel height
+    panel_max_width  = 420, -- maximum panel width
+    offset_x       = 0,     -- default horizontal placement offset
+    offset_y       = -50,   -- default vertical placement offset
+    font_panel     = "GameFontHighlightSmall", -- font for text inside panels
+
     rivet = {
         size = 10,
         texture = "Interface\\Buttons\\WHITE8x8",
@@ -81,7 +94,7 @@ function addon.CreateRivetedPanel(parent, width, height, anchorTo, anchorPoint, 
     inner:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Background")
     inner:SetVertexColor(0.06, 0.06, 0.07, 0.6)
 
-    local text = panel:CreateFontString(nil, "ARTWORK", addon.UI_THEME.font_panel)
+    local text = panel:CreateFontString(nil, "ARTWORK", addon.RIVETED_PANEL_STYLE.font_panel)
     text:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -12)
     text:SetPoint("RIGHT", panel, "RIGHT", -12, 0)
     text:SetJustifyH("LEFT")

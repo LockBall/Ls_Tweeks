@@ -1,6 +1,7 @@
+-- Shared utility functions used across all modules: addon.deep_copy_into() and addon.apply_defaults().
+-- deep_copy_into() does a full recursive overwrite from a source table into a destination; apply_defaults() fills missing DB keys from a defaults table without overwriting existing values.
 local addon_name, addon = ...
 
--- Full recursive overwrite copy: every key in src is written into dest.
 -- Use after table.wipe(dest) to restore a DB table from defaults.
 function addon.deep_copy_into(src, dest)
     for k, v in pairs(src) do

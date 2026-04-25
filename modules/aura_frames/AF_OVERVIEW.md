@@ -22,7 +22,7 @@ af_defaults.lua        — constants and defaults  (loads first)
 af_test_aura.lua       — fake preview aura system
 af_scan.lua            — aura data acquisition
 af_render.lua          — visual output per frame
-af_layout.lua          — geometry and positioning
+af_icon_layout.lua     — geometry and positioning of icons within each category frame
 af_core.lua            — ticker, blizz toggles, main update loop
 af_gui.lua             — settings tab builder
 af_debug_outlines.lua  — developer slot outlines
@@ -104,7 +104,7 @@ is_test_preview — true only for fake preview entries
 
 ### af_render.lua
 **Role:** Takes a populated aura map and writes all visual state into the icon pool. No layout
-math (slot sizes/positions are set by af_layout); render only sets textures, text, bar values.
+math (slot sizes/positions are set by af_icon_layout); render only sets textures, text, bar values.
 
 Defines:
 - `M.format_time(s)` — converts seconds to a human-readable string (`"2 h"`, `"45 m"`, `"12 s"`,
@@ -124,7 +124,7 @@ Defines:
 
 ---
 
-### af_layout.lua
+### af_icon_layout.lua
 **Role:** All geometry: slot sizes, anchor positions, frame height. Never called during combat
 (InCombatLockdown guard). No aura data or rendering logic here.
 
@@ -199,7 +199,7 @@ Controls stored in `M.controls` for programmatic sync:
 
 Defines:
 - `M.add_debug_outline(frame, r, g, b, a)` — called from af_main during icon pool construction.
-  Does nothing if `Ls_Tweeks_DB.show_bar_section_outlines` is false. Outlines are tagged
+  Does nothing if `M.db.show_bar_section_outlines` is false. Outlines are tagged
   `._is_outline = true` so they can be safely found and removed without `SetParent(nil)`.
 - `M.refresh_section_outlines()` — removes and redraws all outlines; called when the debug toggle
   is flipped in the settings panel.
@@ -242,10 +242,10 @@ WoW Event (UNIT_AURA)
                                                           ├─ af_scan: scan_helpful_shared / full_scan
                                                           │     └─► _aura_map populated
                                                           ├─ af_test_aura: append_test_aura (if preview on)
-                                                          ├─ af_layout: setup_layout (if layout changed)
+                                                          ├─ af_icon_layout: setup_layout (if layout changed)
                                                           ├─ af_render: render_aura_map
                                                           │     └─► icon pool visual state written
-                                                          └─ af_layout: set_height_for_growth
+                                                          └─ af_icon_layout: set_height_for_growth
 
 C_Timer.NewTicker(0.1)
   └─► af_core: tick_visible_icons

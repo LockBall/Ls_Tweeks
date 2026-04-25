@@ -1,8 +1,10 @@
+-- Color picker widget that wraps the system ColorPickerFrame with an integrated reset button.
+-- addon.CreateColorPicker(parent, db, key, has_alpha, label, defaults, cb) returns a 95×45 container;
+-- the reset button restores the default color from the defaults table.
 local addon_name, addon = ...
 
 local control_gap = 5
 
--- UNIVERSAL COLOR PICKER WITH PAIRED RESET
 function addon.CreateColorPicker(parent, db_table, db_key, has_alpha, label_text, defaults_table, callback)
 
     -- Container

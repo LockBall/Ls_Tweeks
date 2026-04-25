@@ -1,3 +1,6 @@
+-- Minimap button via LibDataBroker and LibDBIcon.
+-- Left-click toggles the LsTweeks settings window; visibility is controlled by the minimap.hide DB key.
+
 local addon_name, addon = ...
 
 local LDB = LibStub("LibDataBroker-1.1")

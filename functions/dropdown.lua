@@ -1,7 +1,9 @@
+-- Custom dropdown widget (NOT UIDropDownMenu): addon.CreateDropdown(name, parent, label, options, cfg).
+-- Uses a shared click-blocker frame to close the open popup when the user clicks outside it
+-- one blocker instance is reused by all dropdowns on the page.
+
 local addon_name, addon = ...
 
--- Shared click-blocker: sits behind all dropdown popups and dismisses the open one
--- when the user clicks anywhere outside it. One instance, reused by all dropdowns.
 local _dropdown_blocker = CreateFrame("Frame", "LsTweeksDropdownBlocker", UIParent)
 _dropdown_blocker:SetAllPoints(UIParent)
 _dropdown_blocker:SetFrameStrata("FULLSCREEN")

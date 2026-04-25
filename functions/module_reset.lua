@@ -1,3 +1,7 @@
+-- ARM-code safety reset button: addon.CreateGlobalReset(parent, db, defaults).
+-- The user must type "arm" into an input box before the reset button activates, preventing accidental wipes.
+-- Blocked entirely during combat via InCombatLockdown().
+
 local addon_name, addon = ...
 
 function addon.CreateGlobalReset(parent, db, defaults)

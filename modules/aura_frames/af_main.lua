@@ -1,3 +1,8 @@
+-- Bootstrap and frame construction for the aura frames module
+-- loads last so all other af_* files have already populated M.
+-- Creates the four category frames (static / short / long / debuff) with their icon pools
+-- wires UNIT_AURA events with the 0.1s deferred bucket, starts the ticker, and registers the settings tab.
+
 local addon_name, addon = ...
 local M = addon.aura_frames
 

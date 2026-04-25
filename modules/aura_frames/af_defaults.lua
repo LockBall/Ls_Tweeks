@@ -1,9 +1,7 @@
+-- Single source of truth for all aura frames constants and default DB values.
+-- Defines M.CATEGORIES, M.TIMER_CATEGORIES, per-category defaults (show, color, scale, growth, bar mode, font, etc.), and M.get_timer_number_font_size(). Nothing else in the module should hardcode default values.
 local addon_name, addon = ...
 
--- The Foundation: This shell allows other files to store their 
--- frames and controls without hitting a 'nil value' error.
-
--- Ensure we don't wipe out the table if it was already created elsewhere
 addon.aura_frames = addon.aura_frames or {}
 local M = addon.aura_frames
 

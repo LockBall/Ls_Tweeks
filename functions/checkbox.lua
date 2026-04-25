@@ -1,6 +1,7 @@
+-- Styled checkbox widget factory: addon.CreateCheckbox(parent, label, checked, cb).
+-- Returns a container frame holding the checkbox and its label; container width adjusts to the label text.
 local addon_name, addon = ...
 
--- Create a stylized checkbox with label and callback
 function addon.CreateCheckbox(parent, label_text, is_checked, on_click_callback)
     local theme = addon.UI_THEME
     
