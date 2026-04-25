@@ -91,12 +91,9 @@ local function set_blizz_frame_state(frame, hide)
         frame:RegisterEvent("UNIT_AURA")
         frame:RegisterEvent("PLAYER_ENTERING_WORLD")
         frame:Show()
-        if frame.UpdateAuras or frame.UpdateLayout then
-            local f = frame
-            C_Timer.After(0, function()
-                if f.UpdateAuras then f:UpdateAuras() end
-                if f.UpdateLayout then f:UpdateLayout() end
-            end)
+        local refresh = frame.UpdateAuras or frame.UpdateLayout
+        if refresh then
+            C_Timer.After(0, function() refresh(frame) end)
         end
     end
 end

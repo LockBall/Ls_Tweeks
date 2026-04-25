@@ -195,8 +195,12 @@ function addon.CreateGlobalReset(parent, db, defaults)
 
     -- RESET EXECUTION
     btn:SetScript("OnClick", function()
-        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+        if InCombatLockdown() then
+            print("|cffff4444LsTweaks:|r Cannot reset during combat.")
+            return
+        end
 
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 
         -- Wipe and restore this module's DB from its defaults
         table.wipe(db)

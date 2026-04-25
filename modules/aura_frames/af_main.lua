@@ -484,6 +484,14 @@ function M.on_reset_complete()
     M.apply_number_font_to_all()
     if M.set_grid_visible then M.set_grid_visible(M.db.show_grid == true) end
 
+    for show_key, frame in pairs(M.frames) do
+        local p = frame.update_params
+        if p then
+            frame._layout_cache = nil
+            M.update_auras(frame, p.show_key, p.move_key, p.timer_key, p.bg_key, p.scale_key, p.spacing_key, p.filter)
+        end
+    end
+
     if M.sync_general_controls_from_db then
         M.sync_general_controls_from_db()
     end
