@@ -86,12 +86,26 @@ function M.BuildSettings(parent)
 
     local tabs, panels = {}, {}
 
-    -- Category definitions shared between the tree and grid builders
+    -- Category definitions. Keys follow pattern <prefix>_<cat> where cat = name:lower().
+    -- prefixes: show, move, timer, bg, scale, spacing  |  cats: static, debuff, short, long
+    local function make_cat(name, opts)
+        local k = name:lower()
+        return {
+            name        = name,
+            show_key    = "show_"    .. k,
+            move_key    = "move_"    .. k,
+            timer_key   = "timer_"   .. k,
+            bg_key      = "bg_"      .. k,
+            scale_key   = "scale_"   .. k,
+            spacing_key = "spacing_" .. k,
+            is_debuff   = opts and opts.is_debuff,
+        }
+    end
     local frames_data = {
-        { name = "Static", show_key = "show_static", move_key = "move_static", timer_key = "timer_static", bg_key = "bg_static", scale_key = "scale_static", spacing_key = "spacing_static" },
-        { name = "Debuffs",show_key = "show_debuff", move_key = "move_debuff", timer_key = "timer_debuff", bg_key = "bg_debuff", scale_key = "scale_debuff", spacing_key = "spacing_debuff", is_debuff = true },
-        { name = "Short",  show_key = "show_short",  move_key = "move_short",  timer_key = "timer_short",  bg_key = "bg_short",  scale_key = "scale_short",  spacing_key = "spacing_short" },
-        { name = "Long",   show_key = "show_long",   move_key = "move_long",   timer_key = "timer_long",   bg_key = "bg_long",   scale_key = "scale_long",   spacing_key = "spacing_long" },
+        make_cat("Static"),
+        make_cat("Debuffs", { is_debuff = true }),
+        make_cat("Short"),
+        make_cat("Long"),
     }
 
     local tab_data = {
@@ -103,7 +117,7 @@ function M.BuildSettings(parent)
     local build_category_tab  -- forward declaration so build_frames_tab can reference it
 
     local function build_frames_tab(p)
-        -- Left tree sidebar
+        -- Left tree list sidebar
         local TREE_W         = 120
         local TREE_H         = 465  -- height of the tree list; adjust to fit content
         local TREE_GAP_LEFT  = 2    -- space between panel left edge and tree frame (panel already has ~10px inherent offset from sidebar)
