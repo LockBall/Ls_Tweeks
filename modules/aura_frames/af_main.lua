@@ -124,10 +124,7 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         frame:SetResizeBounds(MIN_FRAME_WIDTH, MIN_FRAME_HEIGHT)
     end
     local initial_width = M.db["width_"..category] or 200
-    if initial_width < MIN_FRAME_WIDTH then
-        initial_width = MIN_FRAME_WIDTH
-        M.db["width_"..category] = initial_width
-    end
+    if initial_width < MIN_FRAME_WIDTH then initial_width = MIN_FRAME_WIDTH end
     frame:SetSize(initial_width, 50)
 
     local pos = M.db.positions and M.db.positions[category]
@@ -381,6 +378,115 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
     return frame
 end
 
+-- ============================================================================
+-- CUSTOM FRAME LIFECYCLE
+
+-- Builds the WoW frame for a custom entry. Called at load (for saved entries)
+-- and at runtime (when user clicks + Custom). The frame is keyed by entry.id.
+function M.create_custom_frame(entry)
+    if not entry or not entry.id then return end
+    local id       = entry.id
+    local show_key = "show_" .. id  -- e.g. "show_custom_1"
+    local filter   = (entry.filter == "HARMFUL") and "HARMFUL" or "HELPFUL"
+
+    -- Custom frames use flat keys ("timer", "bg", etc.) inside the entry table,
+    -- not the prefixed pattern used by preset frames ("timer_static", etc.).
+    local frame = M.create_aura_frame(
+        show_key,
+        "move",
+        "timer",
+        "bg",
+        "scale",
+        "spacing",
+        entry.name or id,
+        filter == "HARMFUL"
+    )
+
+    -- Tag the frame so af_core knows to route it through whitelist filtering.
+    frame.is_custom    = true
+    frame.custom_entry = entry
+
+    -- Override update_params to use flat entry keys and correct filter.
+    frame.update_params.show_key    = show_key
+    frame.update_params.move_key    = "move"
+    frame.update_params.timer_key   = "timer"
+    frame.update_params.bg_key      = "bg"
+    frame.update_params.scale_key   = "scale"
+    frame.update_params.spacing_key = "spacing"
+    frame.update_params.filter      = filter
+
+    -- Override resizer OnMouseUp: write width to entry.width instead of flat DB key.
+    if frame.resizer then
+        frame.resizer:SetScript("OnMouseUp", function()
+            frame:StopMovingOrSizing()
+            local w = frame:GetWidth()
+            if w < MIN_FRAME_WIDTH then w = MIN_FRAME_WIDTH; frame:SetWidth(w) end
+            entry.width = w
+            local ws = M.controls and M.controls["custom_" .. id .. "_width"]
+            if ws and ws.slider then ws.slider:SetValue(w) end
+            M.update_auras(frame, show_key, "move", "timer", "bg", "scale", "spacing", filter)
+        end)
+    end
+
+    -- Override OnDragStop for title bars: write position to entry.position.
+    local function on_drag_stop()
+        frame:StopMovingOrSizing()
+        local ucx, ucy = UIParent:GetCenter()
+        if not entry.position then entry.position = {} end
+        entry.position.point = "TOPLEFT"
+        entry.position.x = math.floor(frame:GetLeft() - ucx + 0.5)
+        entry.position.y = math.floor(frame:GetTop()  - ucy + 0.5)
+        if M.db and M.db.snap_to_grid and M.snap_to_grid then
+            entry.position.x = M.snap_to_grid(entry.position.x, false)
+            entry.position.y = M.snap_to_grid(entry.position.y, true)
+            frame:ClearAllPoints()
+            frame:SetPoint("TOPLEFT", UIParent, "CENTER", entry.position.x, entry.position.y)
+        end
+    end
+    if frame.title_bar then
+        frame.title_bar:SetScript("OnDragStop", on_drag_stop)
+    end
+    if frame.bottom_title_bar then
+        frame.bottom_title_bar:SetScript("OnDragStop", on_drag_stop)
+    end
+
+    return frame
+end
+
+-- Creates a new entry, persists it to DB, builds the WoW frame, and returns the entry.
+function M.spawn_custom_frame()
+    if not M.db then return nil end
+    M.db.custom_frames = M.db.custom_frames or {}
+    if #M.db.custom_frames >= (M.MAX_CUSTOM_FRAMES or 4) then return nil end
+
+    local entry = M.new_custom_entry()
+    table.insert(M.db.custom_frames, entry)
+    M.create_custom_frame(entry)
+    return entry
+end
+
+-- Hides and fully removes a custom frame by id. Removes DB entry.
+function M.destroy_custom_frame(id)
+    if not id then return end
+    local show_key = "show_" .. id
+    local frame    = M.frames[show_key]
+    if frame then
+        frame:Hide()
+        frame:UnregisterAllEvents()
+        frame:SetScript("OnEvent", nil)
+        M.frames[show_key] = nil
+    end
+    if M.db and M.db.custom_frames then
+        for i, entry in ipairs(M.db.custom_frames) do
+            if entry.id == id then
+                table.remove(M.db.custom_frames, i)
+                break
+            end
+        end
+    end
+end
+
+-- ============================================================================
 -- INITIALIZATION ENGINE: Orchestrate startup of aura frames once addon data is loaded
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
@@ -390,9 +496,9 @@ loader:SetScript("OnEvent", function(self, event, name)
         if not Ls_Tweeks_DB.aura_frames then Ls_Tweeks_DB.aura_frames = {} end
         M.db = Ls_Tweeks_DB.aura_frames
 
-        -- Initialize learned spell-category tables once at load (not per-scan).
-        M.db.known_static_spell_ids = M.db.known_static_spell_ids or {}
-        M.db.known_long_spell_ids   = M.db.known_long_spell_ids   or {}
+        -- Session-scoped spell learning tables: reset every login, never written to DB.
+        M._known_static = {}
+        M._known_long   = {}
 
         -- Populate missing settings using the defaults defined in af_defaults.lua
         if M.defaults then addon.apply_defaults(M.defaults, M.db) end
@@ -443,6 +549,13 @@ loader:SetScript("OnEvent", function(self, event, name)
         M.create_aura_frame("show_short",   "move_short",   "timer_short",  "bg_short",     "scale_short",  "spacing_short",    "Short",    false)
         M.create_aura_frame("show_long",    "move_long",    "timer_long",   "bg_long",      "scale_long",   "spacing_long",     "Long",     false)
         M.create_aura_frame("show_debuff",  "move_debuff",  "timer_debuff", "bg_debuff",    "scale_debuff", "spacing_debuff",   "Debuffs",  true)
+
+        -- Create saved custom whitelist frames.
+        if M.db.custom_frames then
+            for _, entry in ipairs(M.db.custom_frames) do
+                M.create_custom_frame(entry)
+            end
+        end
 
         -- Migrate any stored positions to TOPLEFT-anchor format.
         -- Defer one frame so GetLeft()/GetTop() return valid screen coordinates.
@@ -497,6 +610,15 @@ function M.on_reset_complete()
         local p = frame.update_params
         if p then
             frame._layout_cache = nil
+            -- Re-link custom entry reference in case DB was replaced by reset.
+            if frame.is_custom and frame.custom_entry then
+                local id = frame.custom_entry.id
+                if M.db.custom_frames then
+                    for _, entry in ipairs(M.db.custom_frames) do
+                        if entry.id == id then frame.custom_entry = entry; break end
+                    end
+                end
+            end
             M.update_auras(frame, p.show_key, p.move_key, p.timer_key, p.bg_key, p.scale_key, p.spacing_key, p.filter)
         end
     end

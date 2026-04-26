@@ -124,13 +124,14 @@ function M.setup_layout(self, show_key, spacing_key, bar_mode)
     if not self or not self.icons then return end
     if InCombatLockdown() then return end
 
-    local db = M.db
+    -- Use frame-specific cfg_db for custom frames; fall back to global M.db for presets.
+    local db = (self._cfg_db) or M.db
     local category = show_key:sub(6)
-    local frame_width = db["width_"..category] or 200
-    local spacing = db[spacing_key] or 6
-    local growth = db["growth_"..category] or "DOWN"
+    local frame_width = db["width_"..category] or db["width"] or 200
+    local spacing = db[spacing_key] or db["spacing"] or 6
+    local growth = db["growth_"..category] or db["growth"] or "DOWN"
 
-    local show_timer_text = M.is_timer_text_enabled(db, category)
+    local show_timer_text = M.is_timer_text_enabled(db, category, db["timer"] ~= nil and "timer" or nil)
     local timer_font_size = (M.get_timer_number_font_size and M.get_timer_number_font_size(category)) or 10
     local bar_layout = M.get_bar_layout_params(timer_font_size)
     local timer_text_align = (category == "long") and "CENTER" or "RIGHT"
