@@ -104,7 +104,7 @@ function M.BuildSettings(parent)
 
     local frames_data = {
         make_cat("Static"),
-        make_cat("Debuffs", { is_debuff = true }),
+        make_cat("Debuff", { is_debuff = true }),
         make_cat("Short"),
         make_cat("Long"),
     }
