@@ -120,11 +120,12 @@ function M.BuildSettings(parent)
     local function build_frames_tab(p)
         -- Left tree list sidebar
         local TREE_W         = 120
-        local TREE_H         = 465  -- height of the tree list; adjust to fit content
+        local TREE_H         = 480  -- height of the tree list; adjust to fit content
         local TREE_GAP_LEFT  = 2    -- space between panel left edge and tree frame (panel already has ~10px inherent offset from sidebar)
         local TREE_GAP_RIGHT = 10   -- space between tree right edge and grid content
+        local TREE_TOP_Y     = 10   -- Y offset for the tree border and its first row (positive = up from panel top)
         local tree_frame = CreateFrame("Frame", nil, p, "BackdropTemplate")
-        tree_frame:SetPoint("TOPLEFT", p, "TOPLEFT", TREE_GAP_LEFT, 0)
+        tree_frame:SetPoint("TOPLEFT", p, "TOPLEFT", TREE_GAP_LEFT, TREE_TOP_Y)
         tree_frame:SetSize(TREE_W, TREE_H)
         tree_frame:SetBackdrop({
             bgFile   = "Interface\\Buttons\\WHITE8x8",
@@ -203,7 +204,7 @@ function M.BuildSettings(parent)
 
         -- Build tree rows; also collect fs refs keyed by node for restore selection
         local node_fs_map = {}
-        local PAD = 12  -- inner padding to clear the border on all sides
+        local PAD = 12  -- inner padding to clear the border on left/right sides
         local y = -PAD
         for _, data in ipairs(frames_data) do
             local cat = data.show_key:sub(6)
@@ -388,7 +389,7 @@ function M.BuildSettings(parent)
             [4] = col_gap * 3 + col_offset,
             col_width = col_width,
             col_align = { "center", "center", "center", "center" },
-            row_start = -20,
+            row_start = 10, -- y position of start of first row 
             row_gap = row_gap,
             -- row #       1    2   3   4   5
             row_heights = {130, 60, 60, 110, 110},
