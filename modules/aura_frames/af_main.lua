@@ -229,6 +229,7 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         
         -- Status Bar (for bar mode)
         obj.bar = CreateFrame("StatusBar", nil, obj)
+        obj.bar:EnableMouse(false)
         obj.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
         obj.bar:SetMinMaxValues(0, 1)
         obj.bar_bg = obj.bar:CreateTexture(nil, "BACKGROUND")
@@ -239,6 +240,7 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
         -- Text Overlay Frame - created AFTER bar so it renders on top
         -- This is a separate frame layer that ensures text is always visible above the bar
         obj.text_overlay = CreateFrame("Frame", nil, obj)
+        obj.text_overlay:EnableMouse(false)
         obj.text_overlay:SetFrameLevel(obj.bar:GetFrameLevel() + 1)
 
         -- Stack slot: left zone of bar (stack count display area)
@@ -289,7 +291,7 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
                 end)
                 updated = ok and result
             end
-            
+
             if not updated then
                 GameTooltip:AddLine(s.aura_name, 1, 1, 1)
                 if s.aura_duration and s.aura_duration > 0 then
@@ -303,6 +305,10 @@ function M.create_aura_frame(show_key, move_key, timer_key, bg_key, scale_key, s
 
             if M.db and M.db.show_spell_id and s.aura_spell_id then
                 GameTooltip:AddLine("Spell ID: " .. tostring(s.aura_spell_id), 0.6, 0.6, 0.6)
+                -- Force rerender: SetUnitAuraByAuraInstanceID calls Show() internally,
+                -- so the tooltip is already visible when we append; calling Show() again
+                -- flushes the new line into the layout.
+                GameTooltip:Show()
             end
 
             GameTooltip:Show()

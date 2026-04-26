@@ -188,10 +188,22 @@ function M.BuildSettings(parent)
         local NORM_COLOR  = { 1, 1,    1 }
         local HOVER_COLOR = { 1, 1,  0.6 }
 
+        local sel_highlight = tree_frame:CreateTexture(nil, "BACKGROUND")
+        sel_highlight:SetColorTexture(0.75, 0.75, 0.75, 0.18)
+        sel_highlight:Hide()
+
         local function set_selected(fs)
             if selected_fs then selected_fs:SetTextColor(unpack(NORM_COLOR)) end
             selected_fs = fs
-            if fs then fs:SetTextColor(unpack(SEL_COLOR)) end
+            if fs then
+                fs:SetTextColor(unpack(SEL_COLOR))
+                sel_highlight:ClearAllPoints()
+                sel_highlight:SetPoint("TOPLEFT",     fs:GetParent(), "TOPLEFT",     0, 0)
+                sel_highlight:SetPoint("BOTTOMRIGHT", fs:GetParent(), "BOTTOMRIGHT", 0, 0)
+                sel_highlight:Show()
+            else
+                sel_highlight:Hide()
+            end
         end
 
         -- Base tree button helper

@@ -314,8 +314,8 @@ function M.build_custom_child_panel(p, entry)
     debuff_btn:SetSize(70, 22)
     buff_btn:SetText("Buffs")
     debuff_btn:SetText("Debuffs")
-    buff_btn:SetPoint("TOPLEFT", filter_lbl, "BOTTOMLEFT", 0, -4)
-    debuff_btn:SetPoint("LEFT", buff_btn, "RIGHT", 6, 0)
+    buff_btn:SetPoint("LEFT", filter_lbl, "RIGHT", 5, 0)
+    debuff_btn:SetPoint("LEFT", buff_btn, "RIGHT", 5, 0)
 
     local function refresh_filter_btns()
         local is_buff = (entry.filter == "HELPFUL")
@@ -371,7 +371,7 @@ function M.build_custom_child_panel(p, entry)
     wl_frame:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.8)
 
     local wl_title = wl_frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    wl_title:SetPoint("TOPLEFT", wl_frame, "TOPLEFT", 6, -5)
+    wl_title:SetPoint("TOP", wl_frame, "TOP", 0, -5)
     wl_title:SetText("Whitelist")
 
     local wl_scroll = CreateFrame("ScrollFrame", nil, wl_frame, "UIPanelScrollFrameTemplate")
@@ -491,19 +491,18 @@ function M.build_custom_child_panel(p, entry)
     -- CAPTURE MODE
     -- ----------------------------------------------------------------
     local CAP_INTERVAL = 1.0
-    local CAP_TIMEOUT  = 30
     local CAP_MAX      = 20
 
-    local cap_active  = false
-    local cap_timer   = nil
-    local cap_elapsed = 0
+    local cap_active = false
+    local cap_timer  = nil
 
-    local CAP_X = WL_X + WL_W + 16
-    local CAP_W = 260
-    local CAP_H = WL_H
+    local CAP_X   = WL_X + WL_W + 16
+    local CAP_W   = 275
+    local CAP_TOP = 10   -- aligns with TREE_TOP_Y in af_gui.lua
+    local CAP_H   = 480   -- TREE_H from af_gui.lua
 
     local cap_frame = CreateFrame("Frame", nil, p, "BackdropTemplate")
-    cap_frame:SetPoint("TOPLEFT", p, "TOPLEFT", CAP_X, WL_Y)
+    cap_frame:SetPoint("TOPLEFT", p, "TOPLEFT", CAP_X, CAP_TOP)
     cap_frame:SetSize(CAP_W, CAP_H)
     cap_frame:SetBackdrop({
         bgFile   = "Interface\\Buttons\\WHITE8x8",
@@ -515,8 +514,8 @@ function M.build_custom_child_panel(p, entry)
     cap_frame:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.8)
 
     local cap_header = cap_frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    cap_header:SetPoint("TOPLEFT", cap_frame, "TOPLEFT", 6, -5)
-    cap_header:SetText("Active Auras")
+    cap_header:SetPoint("TOP", cap_frame, "TOP", 0, -5)
+    cap_header:SetText("Captured Auras")
 
     local cap_status = cap_frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     cap_status:SetPoint("TOPRIGHT", cap_frame, "TOPRIGHT", -6, -5)
@@ -599,6 +598,9 @@ function M.build_custom_child_panel(p, entry)
                 if not seen[sid] then seen[sid] = sname end
             end
         end
+        -- Accumulate: add newly seen auras but never remove ones that expired.
+        -- Transient auras (short buffs, debuffs) would disappear before the user
+        -- can click them if we pruned on every tick.
         local existing_ids = {}
         for _, item in ipairs(cap_auras) do existing_ids[item.spell_id] = true end
         for sid, sname in pairs(seen) do
@@ -606,9 +608,6 @@ function M.build_custom_child_panel(p, entry)
                 table.insert(cap_auras, { spell_id = sid, name = sname })
                 existing_ids[sid] = true
             end
-        end
-        for i = #cap_auras, 1, -1 do
-            if not seen[cap_auras[i].spell_id] then table.remove(cap_auras, i) end
         end
         rebuild_cap_list()
     end
@@ -618,23 +617,19 @@ function M.build_custom_child_panel(p, entry)
     local function stop_capture()
         cap_active = false
         if cap_timer then cap_timer:Cancel(); cap_timer = nil end
-        cap_elapsed = 0
         cap_status:SetText("")
         if cap_checkbox and cap_checkbox.SetChecked then cap_checkbox:SetChecked(false) end
     end
 
     local function start_capture()
         if cap_active then return end
-        cap_active  = true
-        cap_elapsed = 0
-        cap_auras   = {}
+        cap_active = true
+        cap_auras  = {}
         do_capture_scan()
         cap_timer = C_Timer.NewTicker(CAP_INTERVAL, function()
-            cap_elapsed = cap_elapsed + CAP_INTERVAL
-            local remaining = math.max(0, CAP_TIMEOUT - cap_elapsed)
-            cap_status:SetText(string.format("Cap: %d/%d | %ds", #cap_auras, CAP_MAX, remaining))
+            cap_status:SetText(string.format("Capturing: %d/%d", #cap_auras, CAP_MAX))
             do_capture_scan()
-            if cap_elapsed >= CAP_TIMEOUT or #cap_auras >= CAP_MAX then stop_capture() end
+            if #cap_auras >= CAP_MAX then stop_capture() end
         end)
     end
 
@@ -643,11 +638,13 @@ function M.build_custom_child_panel(p, entry)
             if is_checked then start_capture() else stop_capture() end
         end
     )
-    cap_checkbox_container:SetPoint("TOPLEFT", buff_btn, "BOTTOMLEFT", 0, -14)
+    cap_checkbox_container:SetPoint("TOPLEFT", filter_lbl, "BOTTOMLEFT", 0, -14)
 
     local cap_hint = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     cap_hint:SetPoint("LEFT", cap_checkbox_container, "RIGHT", 8, 0)
-    cap_hint:SetText(string.format("(auto-stops: %ds / %d auras)", CAP_TIMEOUT, CAP_MAX))
+    cap_hint:SetText(string.format("(stops on close or %d auras)", CAP_MAX))
+
+    p:HookScript("OnHide", function() if cap_active then stop_capture() end end)
 
     rebuild_whitelist()
     rebuild_cap_list()
